@@ -1,0 +1,28 @@
+{
+  "name": "gridgy",
+  "version": "0.0.0",
+  "devDependencies": {
+    "babel-eslint": "^8.1.2",
+    "babel-preset-env": "^1.6.1",
+    "babel-preset-flow": "^6.23.0",
+    "babel-register": "^6.26.0",
+    "chai": "^4.1.2",
+    "eslint": "^4.14.0",
+    "flow-bin": "^0.62.0",
+    "mocha": "^4.1.0",
+    "mocha-testcheck": "^1.0.0-rc.0",
+    "npm-run-all": "^4.1.2",
+    "prettier": "1.9.2",
+    "rollup": "^0.53.0"
+  },
+  "scripts": {
+    "build": "rollup -c",
+    "pretty": "prettier --config .prettierrc \"{src,test}/**/*.js\" --write",
+    "test": "mocha test/*.js --require babel-register",
+    "testw": "mocha test/*.js --require babel-register --watch --reporter min",
+    "test-min": "mocha test/*.js --require babel-register --reporter dot",
+    "lint": "eslint --cache \"src/**/*.js\" \"test/**/*.js\"",
+    "flow": "flow",
+    "check": "npm run pretty && run-p -s lint flow test-min"
+  }
+}

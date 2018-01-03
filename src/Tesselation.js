@@ -1,15 +1,12 @@
 // @flow
 
+import type {Point, Rect, Matrix2} from "./math.js";
+import type {FID, VID, FKey, EKey, VKey, XKey} from "./Tesselation.types.js";
+
 import {forEachObj, forEachObjNum, mapValues, orderArrays} from "./utils.js";
-import type {Point, Matrix2} from "./math.js";
-
-type FID = number;
-type VID = number;
-
-type FKey = [number, number, FID];
-type EKey = [number, number, FID, number];
-type VKey = [number, number, VID];
-type XKey = FKey | EKey | VKey;
+import {isPointInPolygon, getRectForPeriod, reducePoint} from "./math.js";
+import findFaceCover from "./findFaceCover.js";
+import QuadTree from "./QuadTree.js";
 
 type TesselationProps = {
   faces: Array<FID>,
@@ -189,10 +186,24 @@ function computeElementsAroundVertex(
   return ret;
 }
 
+function reducePointWithShift(
+  point: Point,
+  shift: Point,
+  periodMatrix: Matrix2
+): [Point, Point] {
+  const shiftedPoint = [point[0] - shift[0], point[1] - shift[1]];
+  // rsPoint means reduced and shifted point
+  const [periodCoords, rsPoint] = reducePoint(shiftedPoint, periodMatrix);
+  const reducedPoint = [rsPoint[0] + shift[0], rsPoint[1] + shift[1]];
+  return [periodCoords, reducedPoint];
+}
+
 export default class Tesselation {
   props: TesselationProps;
   _edgeTable: EdgeTable;
-  _incidenceCache: ?IncidenceCache;
+  _incidenceCache: IncidenceCache;
+  _reducedRect: Rect;
+  _quadTree: QuadTree<FKey>;
 
   constructor(props: TesselationProps) {
     if (!props) {
@@ -373,6 +384,75 @@ export default class Tesselation {
     const [vx, vy, vid] = vertex;
     const [vidX, vidY] = this.props.getVertexCoordinates(vid);
     const [a, b, c, d] = this.props.periodMatrix;
-    return [vx * a + vy * c + vidX, vx * b + vy * d + vidY];
+    return [vx * a + vy * b + vidX, vx * c + vy * d + vidY];
+  }
+
+  // Cached computations for finding elements at points. Returns a rectangle
+  // to reduce points to using the period and a quad tree of all faces inside
+  // that rectangle, which can do point-in-rectangle queries.
+  _computeRectMap(): [Rect, QuadTree<FKey>] {
+    if (this._reducedRect && this._quadTree) {
+      return [this._reducedRect, this._quadTree];
+    }
+
+    const periodMatrix = this.props.periodMatrix;
+    const rectSize = getRectForPeriod(this.props.periodMatrix);
+    // findFaceCover requires that the 0,0 period is in the rectangle we pass
+    // so we have a bit to do to find a suitable position for our rectangle.
+    const firstFID = this.props.faces[0];
+    const firstFace = [0, 0, firstFID];
+    const firstVertex = this.getVerticesOnFace(firstFace)[0];
+    const firstVCoords = this.getVertexCoordinates(firstVertex);
+    const rect = [
+      firstVCoords[0] - rectSize[0] / 2,
+      firstVCoords[1] - rectSize[1] / 2,
+      rectSize[0],
+      rectSize[1],
+    ];
+
+    // findFaceCover doesn't care if the getTouchingFaces function returns
+    // duplicates, so we allow them for simplicity.
+    const getTouchingFaces = fid => {
+      return this.getVerticesOnFace([0, 0, fid])
+        .map(v => this.getFacesOnVertex(v))
+        .reduce((a, b) => a.concat(b), []);
+    };
+    const faceCover = findFaceCover(
+      rect,
+      periodMatrix,
+      this.props.faces,
+      fid => this.getFaceCoordinates([0, 0, fid]),
+      getTouchingFaces
+    );
+    const quadTree = new QuadTree(rect);
+    faceCover.forEach(([fKey, fRect]) => {
+      quadTree.addRect(fRect, fKey);
+    });
+
+    this._reducedRect = rect;
+    this._quadTree = quadTree;
+    return [rect, quadTree];
+  }
+
+  findFaceAt(point: Point): ?FKey {
+    const {faces: [firstFID], periodMatrix} = this.props;
+    const [rect, quadTree] = this._computeRectMap();
+
+    const [[px, py], reducedPoint] = reducePointWithShift(
+      point,
+      [rect[0], rect[1]],
+      periodMatrix
+    );
+    let candFaces: Array<FKey> = quadTree
+      .findRects(reducedPoint)
+      .map(r => r[1]);
+    candFaces = shiftFaces(candFaces, [px, py, firstFID]);
+    for (let i = 0; i < candFaces.length; i += 1) {
+      const poly = this.getFaceCoordinates(candFaces[i]);
+      if (isPointInPolygon(point, poly)) {
+        return candFaces[i];
+      }
+    }
+    return null;
   }
 }

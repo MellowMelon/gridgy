@@ -2,8 +2,10 @@
 
 import {describe, it} from "mocha";
 import {expect} from "chai";
+import {check, gen} from "mocha-testcheck";
 
 import Tesselation from "../src/Tesselation.js";
+import {isPointInPolygon} from "../src/math.js";
 
 describe("Tesselation", () => {
   // Some of the below do not use regular shapes and instead approximate to
@@ -19,7 +21,7 @@ describe("Tesselation", () => {
 
   const tHex = new Tesselation({
     faces: [0],
-    periodMatrix: [4, 0, 2, 3],
+    periodMatrix: [4, 2, 0, 3],
     getVerticesOnFace: () => [
       [0, 0, 0],
       [0, 0, 1],
@@ -33,7 +35,7 @@ describe("Tesselation", () => {
 
   const tTri = new Tesselation({
     faces: [0, 1],
-    periodMatrix: [2, 0, 1, 2],
+    periodMatrix: [2, 1, 0, 2],
     getVerticesOnFace: f =>
       f ? [[1, 0, 0], [1, 1, 0], [0, 1, 0]] : [[0, 0, 0], [1, 0, 0], [0, 1, 0]],
     getVertexCoordinates: () => [0, 0],
@@ -41,7 +43,7 @@ describe("Tesselation", () => {
 
   const tOctagon = new Tesselation({
     faces: [0, 1],
-    periodMatrix: [4, 0, 2, 2],
+    periodMatrix: [4, 2, 0, 2],
     getVerticesOnFace: f =>
       f
         ? [[0, 0, 3], [1, 0, 0], [0, 1, 2], [0, 1, 1]]
@@ -659,5 +661,49 @@ describe("Tesselation", () => {
       expectVertexC("octagon", [2, 4, 2]).to.deep.equal([18, 7]);
       expectVertexC("squareStripe", [2, 4, 0]).to.deep.equal([4, 4]);
     });
+  });
+
+  describe("findFaceAt", () => {
+    const expectFaceAt = (tName, p) => {
+      return expect(tTable[tName].findFaceAt(p), tName + " " + p.join(","));
+    };
+
+    // A few explicit tests just to sanity check
+    it("should return the face located at the point", () => {
+      expectFaceAt("square", [1.5, 1.5]).to.deep.equal([1, 1, 0]);
+      expectFaceAt("square", [2.9, 4.1]).to.deep.equal([2, 4, 0]);
+      expectFaceAt("octagon", [10.9, 0.1]).to.deep.equal([2, 0, 0]);
+      expectFaceAt("octagon", [10.9, -0.2]).to.deep.equal([3, -1, 0]);
+      expectFaceAt("octagon", [11.1, 0.1]).to.deep.equal([2, 0, 1]);
+      expectFaceAt("octagon", [11.1, -0.2]).to.deep.equal([3, -1, 0]);
+      expectFaceAt("squareStripe", [6.5, 1.5]).to.deep.equal([3, 1, 0]);
+    });
+
+    it("should return null when there is no face", () => {
+      expectFaceAt("squareStripe", [1.5, 0.5]).to.equal(null);
+      expectFaceAt("squareStripe", [11.1, 123.4]).to.equal(null);
+    });
+
+    const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
+    const genCompleteTessName = gen.oneOf([
+      "square",
+      "hex",
+      "tri",
+      "octagon",
+      "skewedSquare",
+    ]);
+    const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
+    const genPoint = gen.array([genCoord, genCoord]);
+
+    it(
+      "should always return a valid face for a complete tesselation",
+      check({times: 1000}, genCompleteTessName, genPoint, (tName, p) => {
+        const tess = tTable[tName];
+        const face = tess.findFaceAt(p);
+        expect(face).to.be.ok;
+        const polygon = tess.getFaceCoordinates(face);
+        expect(isPointInPolygon(p, polygon)).to.equal(true);
+      })
+    );
   });
 });

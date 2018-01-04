@@ -4,11 +4,11 @@ import type {FID, FKey} from "./Tesselation.types.js";
 import {forEachObjNum} from "./utils.js";
 import {doRectsIntersect, getBoundingBox, unionRects} from "./math.js";
 
-// Given a rectangle, the period of a tesselation, and some properties of the
-// tesselation faces (a list of FIDs, the polygons, the touching faces), return
-// an array of all faces whose rectangular bounding boxes intersect the given
-// rectangle. The rectangle must contain faces from the 0,0 period for this
-// to work.
+// Given a base rectangle, the period of a tesselation, and some properties of
+// the tesselation faces (a list of FIDs, the polygons, the touching faces),
+// return an array of all faces whose rectangular bounding boxes intersect the
+// base rectangle. The base rectangle must contain faces from the 0,0 period
+// for this to work.
 
 // All we do is compute the bounding rectangle of all faces in the base period,
 // try the bounding rectangle for neighboring periods, then test each face for
@@ -16,12 +16,12 @@ import {doRectsIntersect, getBoundingBox, unionRects} from "./math.js";
 // directions from a working one, and we also use the periods of any touching
 // faces.
 
-// For an incomplete tesselation with a period matrix whose vectors form a
-// small angle, it is possible this will miss some faces, but this is a fairly
-// extreme case.
+// For an incomplete tesselation with a period matrix whose vectors are not
+// chosen minimally, it is possible this will miss some faces, but this is a
+// fairly extreme case.
 
 export default function findFaceCover(
-  rect: Rect,
+  baseRect: Rect,
   periodMatrix: Matrix2,
   faceIDs: Array<FID>,
   getFacePolygon: FID => Array<Point>,
@@ -47,7 +47,7 @@ export default function findFaceCover(
     if (!alreadyCheckedPeriods[px + "," + py]) {
       alreadyCheckedPeriods[px + "," + py] = true;
       const allFacesRect = moveRect(baseAllFacesRect, periodMatrix, px, py);
-      if (doRectsIntersect(rect, allFacesRect)) {
+      if (doRectsIntersect(baseRect, allFacesRect)) {
         periodsThatIntersect.push([px, py]);
         neighborPeriods.forEach(([qx, qy]) => checkPeriod(px + qx, py + qy));
       }
@@ -61,7 +61,7 @@ export default function findFaceCover(
   periodsThatIntersect.forEach(([px, py]) => {
     forEachObjNum(faceRectTable, (faceRect, fid) => {
       faceRect = moveRect(faceRect, periodMatrix, px, py);
-      if (doRectsIntersect(rect, faceRect)) {
+      if (doRectsIntersect(baseRect, faceRect)) {
         ret.push([[px, py, fid], faceRect]);
       }
     });

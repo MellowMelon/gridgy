@@ -4,7 +4,8 @@ import type {Point, Rect, Matrix2} from "./math.js";
 import type {FID, VID, FKey, EKey, VKey, XKey} from "./Tesselation.types.js";
 
 import {forEachObj, forEachObjNum, mapValues, orderArrays} from "./utils.js";
-import {isPointInPolygon, getRectForPeriod, reducePoint} from "./math.js";
+import {isPointInPolygon} from "./math.js";
+import {getBaseRectSize, reducePoint} from "./PlanePeriod.js";
 import findFaceCover from "./findFaceCover.js";
 import QuadTree from "./QuadTree.js";
 
@@ -202,7 +203,7 @@ export default class Tesselation {
   props: TesselationProps;
   _edgeTable: EdgeTable;
   _incidenceCache: IncidenceCache;
-  _reducedRect: Rect;
+  _baseRect: Rect;
   _quadTree: QuadTree<FKey>;
 
   constructor(props: TesselationProps) {
@@ -387,27 +388,37 @@ export default class Tesselation {
     return [vx * a + vy * b + vidX, vx * c + vy * d + vidY];
   }
 
-  // Cached computations for finding elements at points. Returns a rectangle
-  // to reduce points to using the period and a quad tree of all faces inside
-  // that rectangle, which can do point-in-rectangle queries.
+  // Below are the methods that figure out which element is closest to a given
+  // point in the plane. The general strategy here is to choose a base
+  // rectangle and move the provided point inside it using the period matrix.
+  // This makes the problem finite, and we can precompute all faces that
+  // intersect the base rectangle, figure out where the point is using them,
+  // and then shift back to the real point/face using the period.
+
+  // This helper function does the aforementioned precomputing. It returns
+  // a base rectangle and a quad tree. The quad tree allows querying for all
+  // faces that could potentially contain a given point in the base rectangle.
+  // The helper is treated as lazy, so the computations occur the first time
+  // a findXAt query is made.
   _computeRectMap(): [Rect, QuadTree<FKey>] {
-    if (this._reducedRect && this._quadTree) {
-      return [this._reducedRect, this._quadTree];
+    if (this._baseRect && this._quadTree) {
+      return [this._baseRect, this._quadTree];
     }
 
     const periodMatrix = this.props.periodMatrix;
-    const rectSize = getRectForPeriod(this.props.periodMatrix);
-    // findFaceCover requires that the 0,0 period is in the rectangle we pass
-    // so we have a bit to do to find a suitable position for our rectangle.
+    const baseRectSize = getBaseRectSize(this.props.periodMatrix);
+    // findFaceCover requires that a face in the 0,0 period intersects the base
+    // rectangle, so we position the base rectangle to be centered at the first
+    // vertex of the first face in 0,0.
     const firstFID = this.props.faces[0];
     const firstFace = [0, 0, firstFID];
     const firstVertex = this.getVerticesOnFace(firstFace)[0];
     const firstVCoords = this.getVertexCoordinates(firstVertex);
-    const rect = [
-      firstVCoords[0] - rectSize[0] / 2,
-      firstVCoords[1] - rectSize[1] / 2,
-      rectSize[0],
-      rectSize[1],
+    const baseRect = [
+      firstVCoords[0] - baseRectSize[0] / 2,
+      firstVCoords[1] - baseRectSize[1] / 2,
+      baseRectSize[0],
+      baseRectSize[1],
     ];
 
     // findFaceCover doesn't care if the getTouchingFaces function returns
@@ -418,35 +429,41 @@ export default class Tesselation {
         .reduce((a, b) => a.concat(b), []);
     };
     const faceCover = findFaceCover(
-      rect,
+      baseRect,
       periodMatrix,
       this.props.faces,
       fid => this.getFaceCoordinates([0, 0, fid]),
       getTouchingFaces
     );
-    const quadTree = new QuadTree(rect);
+
+    // We now have a list of all faces intersecting the base rectangle, so all
+    // that's left is to put them in a quad tree for querying.
+    const quadTree = new QuadTree(baseRect);
     faceCover.forEach(([fKey, fRect]) => {
       quadTree.addRect(fRect, fKey);
     });
 
-    this._reducedRect = rect;
+    this._baseRect = baseRect;
     this._quadTree = quadTree;
-    return [rect, quadTree];
+    return [baseRect, quadTree];
   }
 
   findFaceAt(point: Point): ?FKey {
     const {faces: [firstFID], periodMatrix} = this.props;
-    const [rect, quadTree] = this._computeRectMap();
+    const [baseRect, quadTree] = this._computeRectMap();
 
+    // Move the point into the base rectangle using the period matrix.
     const [[px, py], reducedPoint] = reducePointWithShift(
       point,
-      [rect[0], rect[1]],
+      [baseRect[0], baseRect[1]],
       periodMatrix
     );
+    // Query the quad tree for potential containing faces.
     let candFaces: Array<FKey> = quadTree
       .findRects(reducedPoint)
       .map(r => r[1]);
     candFaces = shiftFaces(candFaces, [px, py, firstFID]);
+    // Figure out which face it is, if any.
     for (let i = 0; i < candFaces.length; i += 1) {
       const poly = this.getFaceCoordinates(candFaces[i]);
       if (isPointInPolygon(point, poly)) {

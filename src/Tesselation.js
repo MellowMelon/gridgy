@@ -39,8 +39,15 @@ function shiftEls<T: XKey>(elArray: Array<T>, toEl: XKey): Array<T> {
 }
 
 // Flattens an array of element arrays while removing duplicates.
-function unionEls<T: XKey>(nestedElArray: Array<Array<T>>): Array<T> {
+function unionEls<T: XKey>(
+  nestedElArray: Array<Array<T>>,
+  without: ?Array<T>
+): Array<T> {
   const seenTable = {};
+  without &&
+    without.forEach(el => {
+      seenTable[el.join(",")] = true;
+    });
   const ret = [];
   nestedElArray.forEach(elArray => {
     elArray.forEach(el => {
@@ -383,6 +390,46 @@ export default class Tesselation {
     return (is1Equal ? v2 : v1) || null;
   }
 
+  getAdjacentFaces(face: FKey): Array<FKey> {
+    return this.getEdgesOnFace(face)
+      .map(edge => this.getOtherFace(face, edge))
+      .filter(Boolean);
+  }
+
+  getAdjacentVertices(vertex: VKey): Array<VKey> {
+    return this.getEdgesOnVertex(vertex)
+      .map(edge => this.getOtherVertex(vertex, edge))
+      .filter(Boolean);
+  }
+
+  getTouchingFaces(face: FKey): Array<FKey> {
+    return unionEls(
+      this.getVerticesOnFace(face).map(v => this.getFacesOnVertex(v)),
+      [face]
+    );
+  }
+
+  getTouchingEdges(edge: EKey): Array<EKey> {
+    return unionEls(
+      this.getVerticesOnEdge(edge).map(v => this.getEdgesOnVertex(v)),
+      [this.getCanonicalEdge(edge)]
+    );
+  }
+
+  getSurroundingEdges(edge: EKey): Array<EKey> {
+    return unionEls(
+      this.getFacesOnEdge(edge).map(f => this.getEdgesOnFace(f)),
+      [this.getCanonicalEdge(edge)]
+    );
+  }
+
+  getSurroundingVertices(vertex: VKey): Array<VKey> {
+    return unionEls(
+      this.getFacesOnVertex(vertex).map(f => this.getVerticesOnFace(f)),
+      [vertex]
+    );
+  }
+
   getFaceCoordinates(face: FKey): Array<Point> {
     return this.getVerticesOnFace(face).map(v => this.getVertexCoordinates(v));
   }
@@ -431,17 +478,12 @@ export default class Tesselation {
       baseRectSize[1],
     ];
 
-    const getTouchingFaces = fid => {
-      return unionEls(
-        this.getVerticesOnFace([0, 0, fid]).map(v => this.getFacesOnVertex(v))
-      );
-    };
     const faceCover = findFaceCover(
       baseRect,
       periodMatrix,
       this.props.faces,
       fid => this.getFaceCoordinates([0, 0, fid]),
-      getTouchingFaces
+      fid => this.getTouchingFaces([0, 0, fid])
     );
 
     this._baseRect = baseRect;

@@ -578,6 +578,284 @@ describe("Tesselation", () => {
     });
   });
 
+  describe("getAdjacentFaces", () => {
+    const expectAdj = (tName, f) => {
+      return expect(
+        tTable[tName].getAdjacentFaces(f),
+        tName + " " + f.join(",")
+      );
+    };
+
+    it("should return all faces with a common edge", () => {
+      expectAdj("square", [0, 0, 0]).to.deep.equal([
+        [0, -1, 0],
+        [1, 0, 0],
+        [0, 1, 0],
+        [-1, 0, 0],
+      ]);
+      expectAdj("square", [2, 4, 0]).to.deep.equal([
+        [2, 3, 0],
+        [3, 4, 0],
+        [2, 5, 0],
+        [1, 4, 0],
+      ]);
+      expectAdj("octagon", [2, 4, 0]).to.deep.equal([
+        [2, 3, 0],
+        [2, 3, 1],
+        [3, 3, 0],
+        [2, 4, 1],
+        [2, 5, 0],
+        [1, 5, 1],
+        [1, 5, 0],
+        [1, 4, 1],
+      ]);
+      expectAdj("octagon", [2, 4, 1]).to.deep.equal([
+        [3, 3, 0],
+        [3, 4, 0],
+        [2, 5, 0],
+        [2, 4, 0],
+      ]);
+      expectAdj("squareStripe", [2, 4, 0]).to.deep.equal([
+        [2, 3, 0],
+        [2, 5, 0],
+      ]);
+    });
+  });
+
+  describe("getAdjacentVertices", () => {
+    const expectAdj = (tName, v) => {
+      return expect(
+        tTable[tName].getAdjacentVertices(v),
+        tName + " " + v.join(",")
+      );
+    };
+
+    it("should return all vertices with a common edge", () => {
+      expectAdj("square", [0, 0, 0]).to.deep.equal([
+        [0, 1, 0],
+        [-1, 0, 0],
+        [0, -1, 0],
+        [1, 0, 0],
+      ]);
+      expectAdj("square", [2, 4, 0]).to.deep.equal([
+        [2, 5, 0],
+        [1, 4, 0],
+        [2, 3, 0],
+        [3, 4, 0],
+      ]);
+      expectAdj("octagon", [2, 4, 0]).to.deep.equal([
+        [1, 5, 2],
+        [1, 4, 3],
+        [2, 4, 1],
+      ]);
+      expectAdj("octagon", [2, 4, 1]).to.deep.equal([
+        [2, 4, 0],
+        [2, 3, 3],
+        [2, 4, 2],
+      ]);
+      expectAdj("squareStripe", [2, 4, 0]).to.deep.equal([
+        [2, 5, 0],
+        [2, 4, 1],
+        [2, 3, 0],
+      ]);
+    });
+  });
+
+  describe("getTouchingFaces", () => {
+    const expectTouch = (tName, f) => {
+      return expect(
+        tTable[tName].getTouchingFaces(f),
+        tName + " " + f.join(",")
+      );
+    };
+
+    // Order is arbitrary (but consistent)
+    it("should return all faces with a common vertex", () => {
+      expectTouch("square", [0, 0, 0]).to.deep.equal([
+        [-1, 0, 0],
+        [-1, -1, 0],
+        [0, -1, 0],
+        [1, 0, 0],
+        [1, -1, 0],
+        [1, 1, 0],
+        [0, 1, 0],
+        [-1, 1, 0],
+      ]);
+      expectTouch("square", [2, 4, 0]).to.deep.equal([
+        [1, 4, 0],
+        [1, 3, 0],
+        [2, 3, 0],
+        [3, 4, 0],
+        [3, 3, 0],
+        [3, 5, 0],
+        [2, 5, 0],
+        [1, 5, 0],
+      ]);
+      expectTouch("hex", [2, 4, 0]).to.deep.equal([
+        [1, 4, 0],
+        [2, 3, 0],
+        [3, 3, 0],
+        [3, 4, 0],
+        [2, 5, 0],
+        [1, 5, 0],
+      ]);
+      expectTouch("squareStripe", [2, 4, 0]).to.deep.equal([
+        [2, 3, 0],
+        [2, 5, 0],
+      ]);
+    });
+  });
+
+  describe("getTouchingEdges", () => {
+    const expectTouch = (tName, e) => {
+      return expect(
+        tTable[tName].getTouchingEdges(e),
+        tName + " " + e.join(",")
+      );
+    };
+
+    // Order is arbitrary (but consistent)
+    it("should return all edges with a common vertex", () => {
+      expectTouch("square", [0, 0, 0, 0]).to.deep.equal([
+        [0, 0, 0, 3],
+        [-1, 0, 0, 0],
+        [0, -1, 0, 3],
+        [1, 0, 0, 3],
+        [1, -1, 0, 3],
+        [1, 0, 0, 0],
+      ]);
+      // [2,4,0,1] is not the canonical form, and said canonical form [3,4,0,3]
+      // should not be included in this array.
+      expectTouch("square", [2, 4, 0, 1]).to.deep.equal([
+        [2, 4, 0, 0],
+        [3, 3, 0, 3],
+        [3, 4, 0, 0],
+        [3, 5, 0, 3],
+        [2, 5, 0, 0],
+        [3, 5, 0, 0],
+      ]);
+      expectTouch("hex", [2, 4, 0, 0]).to.deep.equal([
+        [2, 4, 0, 5],
+        [2, 3, 0, 4],
+        [3, 3, 0, 5],
+        [3, 3, 0, 4],
+      ]);
+      expectTouch("squareStripe", [2, 4, 0, 0]).to.deep.equal([
+        [2, 4, 0, 3],
+        [2, 3, 0, 3],
+        [2, 3, 0, 1],
+        [2, 4, 0, 1],
+      ]);
+    });
+  });
+
+  describe("getSurroundingEdges", () => {
+    const expectSurr = (tName, e) => {
+      return expect(
+        tTable[tName].getSurroundingEdges(e),
+        tName + " " + e.join(",")
+      );
+    };
+
+    // Order is arbitrary (but consistent)
+    it("should return all edges with a common face", () => {
+      expectSurr("square", [0, 0, 0, 0]).to.deep.equal([
+        [0, -1, 0, 0],
+        [1, -1, 0, 3],
+        [0, -1, 0, 3],
+        [1, 0, 0, 3],
+        [0, 1, 0, 0],
+        [0, 0, 0, 3],
+      ]);
+      // [2,4,0,1] is not the canonical form, and said canonical form [3,4,0,3]
+      // should not be included in this array.
+      expectSurr("square", [2, 4, 0, 1]).to.deep.equal([
+        [2, 4, 0, 0],
+        [2, 5, 0, 0],
+        [2, 4, 0, 3],
+        [3, 4, 0, 0],
+        [4, 4, 0, 3],
+        [3, 5, 0, 0],
+      ]);
+      expectSurr("hex", [2, 4, 0, 0]).to.deep.equal([
+        [2, 3, 0, 0],
+        [3, 2, 0, 4],
+        [3, 3, 0, 5],
+        [2, 3, 0, 4],
+        [2, 3, 0, 5],
+        [3, 3, 0, 4],
+        [3, 4, 0, 5],
+        [2, 5, 0, 0],
+        [2, 4, 0, 4],
+        [2, 4, 0, 5],
+      ]);
+      expectSurr("squareStripe", [2, 4, 0, 0]).to.deep.equal([
+        [2, 3, 0, 0],
+        [2, 3, 0, 1],
+        [2, 3, 0, 3],
+        [2, 4, 0, 1],
+        [2, 5, 0, 0],
+        [2, 4, 0, 3],
+      ]);
+    });
+  });
+
+  describe("getSurroundingVertices", () => {
+    const expectSurr = (tName, v) => {
+      return expect(
+        tTable[tName].getSurroundingVertices(v),
+        tName + " " + v.join(",")
+      );
+    };
+
+    // Order is arbitrary (but consistent)
+    it("should return all vertices with a common face", () => {
+      expectSurr("square", [0, 0, 0]).to.deep.equal([
+        [1, 0, 0],
+        [1, 1, 0],
+        [0, 1, 0],
+        [-1, 0, 0],
+        [-1, 1, 0],
+        [-1, -1, 0],
+        [0, -1, 0],
+        [1, -1, 0],
+      ]);
+      expectSurr("square", [2, 4, 0]).to.deep.equal([
+        [3, 4, 0],
+        [3, 5, 0],
+        [2, 5, 0],
+        [1, 4, 0],
+        [1, 5, 0],
+        [1, 3, 0],
+        [2, 3, 0],
+        [3, 3, 0],
+      ]);
+      expectSurr("octagon", [2, 4, 0]).to.deep.equal([
+        [2, 4, 1],
+        [2, 4, 2],
+        [2, 4, 3],
+        [2, 5, 1],
+        [2, 5, 0],
+        [1, 5, 3],
+        [1, 5, 2],
+        [1, 4, 3],
+        [1, 5, 1],
+        [2, 3, 0],
+        [2, 3, 1],
+        [2, 3, 2],
+        [2, 3, 3],
+        [1, 4, 2],
+      ]);
+      expectSurr("squareStripe", [2, 4, 0]).to.deep.equal([
+        [2, 4, 1],
+        [2, 5, 1],
+        [2, 5, 0],
+        [2, 3, 0],
+        [2, 3, 1],
+      ]);
+    });
+  });
+
   describe("getFaceCoordinates", () => {
     const expectFaceC = (tName, f) => {
       return expect(
@@ -725,13 +1003,6 @@ describe("Tesselation", () => {
       expectEdgeAt("squareStripe", [7.2, 1.5]).to.deep.equal([3, 1, 0, 1]);
     });
 
-    const getNearbyEdges = (tess, eKey) => {
-      return tess
-        .getFacesOnEdge(eKey)
-        .map(k => tess.getEdgesOnFace(k))
-        .reduce((a, b) => a.concat(b), []);
-    };
-
     // Returns squared distance
     const getEdgeDist = (tess, eKey, point) => {
       const [[x1, y1], [x2, y2]] = tess.getEdgeCoordinates(eKey);
@@ -742,7 +1013,7 @@ describe("Tesselation", () => {
     // The enlarging done in makeVoronoiAtlas means the choice of element is
     // arbitrary when it's nearly tied. Require distances to be apart by this
     // much before we flag a test as a failure.
-    const DISTANCE_TOLERANCE = 0.0001;
+    const DISTANCE_TOLERANCE = 0.000001;
 
     it(
       "should always return the closest edge for a complete tesselation",
@@ -750,7 +1021,7 @@ describe("Tesselation", () => {
         const tess = tTable[tName];
         const bestEdge = tess.findEdgeAt(p);
         expect(bestEdge).to.be.ok;
-        const nearEdges = getNearbyEdges(tess, bestEdge);
+        const nearEdges = tess.getSurroundingEdges(bestEdge);
         const bestDistance = getEdgeDist(tess, bestEdge, p);
         const nearDistances = nearEdges.map(k => getEdgeDist(tess, k, p));
         nearDistances.forEach((d, i) => {
@@ -790,13 +1061,6 @@ describe("Tesselation", () => {
       expectVertexAt("squareStripe", [7.2, 1.6]).to.deep.equal([3, 2, 1]);
     });
 
-    const getNearbyVertices = (tess, vKey) => {
-      return tess
-        .getFacesOnVertex(vKey)
-        .map(k => tess.getVerticesOnFace(k))
-        .reduce((a, b) => a.concat(b), []);
-    };
-
     // Returns squared distance
     const getVertexDist = (tess, vKey, point) => {
       const [xv, yv] = tess.getVertexCoordinates(vKey);
@@ -814,7 +1078,7 @@ describe("Tesselation", () => {
         const tess = tTable[tName];
         const bestVertex = tess.findVertexAt(p);
         expect(bestVertex).to.be.ok;
-        const nearVertices = getNearbyVertices(tess, bestVertex);
+        const nearVertices = tess.getSurroundingVertices(bestVertex);
         const bestDistance = getVertexDist(tess, bestVertex, p);
         const nearDistances = nearVertices.map(k => getVertexDist(tess, k, p));
         nearDistances.forEach((d, i) => {

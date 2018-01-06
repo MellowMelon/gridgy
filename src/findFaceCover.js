@@ -26,7 +26,7 @@ export default function findFaceCover(
   faceIDs: Array<FID>,
   getFacePolygon: FID => Array<Point>,
   getTouchingFaces: FID => Array<FKey>
-): Array<[FKey, Rect]> {
+): Array<FKey> {
   // Compute the rectangle of each face, as well as the one containing all of
   // them. This is for the base period only.
   const faceRectTable = {};
@@ -62,7 +62,7 @@ export default function findFaceCover(
     forEachObjNum(faceRectTable, (faceRect, fid) => {
       faceRect = moveRect(faceRect, periodMatrix, px, py);
       if (doRectsIntersect(baseRect, faceRect)) {
-        ret.push([[px, py, fid], faceRect]);
+        ret.push([px, py, fid]);
       }
     });
   });

@@ -663,6 +663,18 @@ describe("Tesselation", () => {
     });
   });
 
+  // testcheck utilities for testing findXAt methods.
+  const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
+  const genCompleteTessName = gen.oneOf([
+    "square",
+    "hex",
+    "tri",
+    "octagon",
+    "skewedSquare",
+  ]);
+  const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
+  const genPoint = gen.array([genCoord, genCoord]);
+
   describe("findFaceAt", () => {
     const expectFaceAt = (tName, p) => {
       return expect(tTable[tName].findFaceAt(p), tName + " " + p.join(","));
@@ -684,17 +696,6 @@ describe("Tesselation", () => {
       expectFaceAt("squareStripe", [11.1, 123.4]).to.equal(null);
     });
 
-    const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
-    const genCompleteTessName = gen.oneOf([
-      "square",
-      "hex",
-      "tri",
-      "octagon",
-      "skewedSquare",
-    ]);
-    const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
-    const genPoint = gen.array([genCoord, genCoord]);
-
     it(
       "should always return a valid face for a complete tesselation",
       check({times: 1000}, genCompleteTessName, genPoint, (tName, p) => {
@@ -703,6 +704,136 @@ describe("Tesselation", () => {
         expect(face).to.be.ok;
         const polygon = tess.getFaceCoordinates(face);
         expect(isPointInPolygon(p, polygon)).to.equal(true);
+      })
+    );
+  });
+
+  describe("findEdgeAt", () => {
+    const expectEdgeAt = (tName, p) => {
+      return expect(tTable[tName].findEdgeAt(p), tName + " " + p.join(","));
+    };
+
+    // A few explicit tests just to sanity check
+    it("should return the edge closest to the point", () => {
+      expectEdgeAt("square", [1.5, 1.2]).to.deep.equal([1, 1, 0, 0]);
+      expectEdgeAt("square", [2.9, 4.2]).to.deep.equal([3, 4, 0, 3]);
+      expectEdgeAt("octagon", [10.9, 0.2]).to.deep.equal([2, 0, 1, 3]);
+      expectEdgeAt("octagon", [10.9, -0.2]).to.deep.equal([3, -1, 0, 6]);
+      expectEdgeAt("octagon", [11.2, 0.1]).to.deep.equal([3, -1, 0, 5]);
+      expectEdgeAt("octagon", [11.2, -0.2]).to.deep.equal([3, -1, 0, 5]);
+      expectEdgeAt("squareStripe", [6.8, 1.5]).to.deep.equal([3, 1, 0, 1]);
+      expectEdgeAt("squareStripe", [7.2, 1.5]).to.deep.equal([3, 1, 0, 1]);
+    });
+
+    const getNearbyEdges = (tess, eKey) => {
+      return tess
+        .getFacesOnEdge(eKey)
+        .map(k => tess.getEdgesOnFace(k))
+        .reduce((a, b) => a.concat(b), []);
+    };
+
+    // Returns squared distance
+    const getEdgeDist = (tess, eKey, point) => {
+      const [[x1, y1], [x2, y2]] = tess.getEdgeCoordinates(eKey);
+      const [xm, ym] = [(x1 + x2) / 2, (y1 + y2) / 2];
+      return Math.pow(xm - point[0], 2) + Math.pow(ym - point[1], 2);
+    };
+
+    // The enlarging done in makeVoronoiAtlas means the choice of element is
+    // arbitrary when it's nearly tied. Require distances to be apart by this
+    // much before we flag a test as a failure.
+    const DISTANCE_TOLERANCE = 0.0001;
+
+    it(
+      "should always return the closest edge for a complete tesselation",
+      check({times: 1000}, genCompleteTessName, genPoint, (tName, p) => {
+        const tess = tTable[tName];
+        const bestEdge = tess.findEdgeAt(p);
+        expect(bestEdge).to.be.ok;
+        const nearEdges = getNearbyEdges(tess, bestEdge);
+        const bestDistance = getEdgeDist(tess, bestEdge, p);
+        const nearDistances = nearEdges.map(k => getEdgeDist(tess, k, p));
+        nearDistances.forEach((d, i) => {
+          if (d + DISTANCE_TOLERANCE < bestDistance) {
+            expect.fail(
+              bestEdge,
+              nearEdges[i],
+              "Edge " +
+                nearEdges[i].join(",") +
+                " was closer than " +
+                bestEdge.join(",") +
+                " (" +
+                d +
+                " < " +
+                bestDistance +
+                ")"
+            );
+          }
+        });
+      })
+    );
+  });
+
+  describe("findVertexAt", () => {
+    const expectVertexAt = (tName, p) => {
+      return expect(tTable[tName].findVertexAt(p), tName + " " + p.join(","));
+    };
+
+    // A few explicit tests just to sanity check
+    it("should return the vertex closest to the point", () => {
+      expectVertexAt("square", [1.2, 1.2]).to.deep.equal([1, 1, 0]);
+      expectVertexAt("square", [2.6, 4.4]).to.deep.equal([3, 4, 0]);
+      expectVertexAt("octagon", [10.0, 0.1]).to.deep.equal([2, 0, 3]);
+      expectVertexAt("octagon", [10.0, -0.1]).to.deep.equal([2, 0, 2]);
+      expectVertexAt("octagon", [11.2, 0.6]).to.deep.equal([2, 1, 1]);
+      expectVertexAt("squareStripe", [6.8, 1.4]).to.deep.equal([3, 1, 1]);
+      expectVertexAt("squareStripe", [7.2, 1.6]).to.deep.equal([3, 2, 1]);
+    });
+
+    const getNearbyVertices = (tess, vKey) => {
+      return tess
+        .getFacesOnVertex(vKey)
+        .map(k => tess.getVerticesOnFace(k))
+        .reduce((a, b) => a.concat(b), []);
+    };
+
+    // Returns squared distance
+    const getVertexDist = (tess, vKey, point) => {
+      const [xv, yv] = tess.getVertexCoordinates(vKey);
+      return Math.pow(xv - point[0], 2) + Math.pow(yv - point[1], 2);
+    };
+
+    // The enlarging done in makeVoronoiAtlas means the choice of element is
+    // arbitrary when it's nearly tied. Require distances to be apart by this
+    // much before we flag a test as a failure.
+    const DISTANCE_TOLERANCE = 0.000001;
+
+    it(
+      "should always return the closest vertex for a complete tesselation",
+      check({times: 1000}, genCompleteTessName, genPoint, (tName, p) => {
+        const tess = tTable[tName];
+        const bestVertex = tess.findVertexAt(p);
+        expect(bestVertex).to.be.ok;
+        const nearVertices = getNearbyVertices(tess, bestVertex);
+        const bestDistance = getVertexDist(tess, bestVertex, p);
+        const nearDistances = nearVertices.map(k => getVertexDist(tess, k, p));
+        nearDistances.forEach((d, i) => {
+          if (d + DISTANCE_TOLERANCE < bestDistance) {
+            expect.fail(
+              bestVertex,
+              nearVertices[i],
+              "Vertex " +
+                nearVertices[i].join(",") +
+                " was closer than " +
+                bestVertex.join(",") +
+                " (" +
+                d +
+                " < " +
+                bestDistance +
+                ")"
+            );
+          }
+        });
       })
     );
   });

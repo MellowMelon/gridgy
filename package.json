@@ -24,5 +24,8 @@
     "lint": "eslint --cache \"src/**/*.js\" \"test/**/*.js\"",
     "flow": "flow",
     "check": "npm run pretty && run-p -s lint flow test-min"
+  },
+  "dependencies": {
+    "voronoi": "^1.0.0"
   }
 }

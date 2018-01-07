@@ -35,7 +35,6 @@ describe("getBaseRectSize", () => {
 });
 
 describe("reducePoint", () => {
-  // See the math.js comments for the detailed explanation.
   it(
     "should return integer components and a point close to the origin",
     check(genPoint, genNonsingularM2, ([x, y], [a, b, c, d]) => {

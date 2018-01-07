@@ -1,7 +1,9 @@
+// @flow
+
 import type {Point, Rect, Matrix2} from "./math.js";
 import type {FID, FKey} from "./Tesselation.types.js";
 
-import {forEachObjNum} from "./utils.js";
+import {forEachObj} from "./utils.js";
 import {doRectsIntersect, getBoundingBox, unionRects} from "./math.js";
 
 // Given a base rectangle, the period of a tesselation, and some properties of
@@ -59,7 +61,7 @@ export default function findFaceCover(
   // given one. This is our final result.
   const ret = [];
   periodsThatIntersect.forEach(([px, py]) => {
-    forEachObjNum(faceRectTable, (faceRect, fid) => {
+    forEachObj(faceRectTable, (faceRect, fid) => {
       faceRect = moveRect(faceRect, periodMatrix, px, py);
       if (doRectsIntersect(baseRect, faceRect)) {
         ret.push([px, py, fid]);

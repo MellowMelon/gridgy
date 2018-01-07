@@ -3,17 +3,16 @@
 import type {Point, Rect, Matrix2} from "./math.js";
 import type {FID, VID, FKey, EKey, VKey, XKey} from "./Tesselation.types.js";
 
-import {forEachObj, forEachObjNum, mapValues, orderArrays} from "./utils.js";
+import {forEachObj, mapValues, orderArrays, union} from "./utils.js";
 import {getBaseRectSize, reducePoint} from "./PlanePeriod.js";
 import findFaceCover from "./findFaceCover.js";
 import PolygonAtlas from "./PolygonAtlas.js";
 import makeVoronoiAtlas from "./makeVoronoiAtlas.js";
 
 type TesselationProps = {
-  faces: Array<FID>,
+  faceVerticesTable: {[FID]: Array<VKey>},
+  vertexCoordinatesTable: {[VID]: Point},
   periodMatrix: Matrix2,
-  getVerticesOnFace: FID => Array<VKey>,
-  getVertexCoordinates: VID => Point,
 };
 
 type EdgeTable = {[FID]: Array<EKey>};
@@ -38,46 +37,23 @@ function shiftEls<T: XKey>(elArray: Array<T>, toEl: XKey): Array<T> {
   return elArray.map(el => shiftEl(el, toEl));
 }
 
-// Flattens an array of element arrays while removing duplicates.
-function unionEls<T: XKey>(
-  nestedElArray: Array<Array<T>>,
-  without: ?Array<T>
-): Array<T> {
-  const seenTable = {};
-  without &&
-    without.forEach(el => {
-      seenTable[el.join(",")] = true;
-    });
-  const ret = [];
-  nestedElArray.forEach(elArray => {
-    elArray.forEach(el => {
-      const seenKey = el.join(",");
-      if (!seenTable[seenKey]) {
-        seenTable[seenKey] = true;
-        ret.push(el);
-      }
-    });
-  });
-  return ret;
-}
-
 // Edges on two faces can be identified in two ways. This makes a table that
 // disambiguates them and chooses one to use.
 function makeEdgeTable(vOnETable: {[FID]: Array<[VKey, VKey]>}): EdgeTable {
   const vertexPairTable = {};
   const edgeTable = {};
 
-  const pairToKeyAndEdge = ([v1, v2], fid, i) => {
+  const pairToKeyAndEdge = ([v1, v2], i, fid) => {
     const [vl, vh] = orderArrays(v1, v2);
     return {
       vpKey: [vl[2], vh[0] - vl[0], vh[1] - vl[1], vh[2]].join(","),
-      edge: [-vl[0], -vl[1], fid, i],
+      edge: [-vl[0], -vl[1], i, fid],
     };
   };
-  forEachObjNum(vOnETable, (vOnERow, fid) => {
+  forEachObj(vOnETable, (vOnERow, fid) => {
     edgeTable[fid] = edgeTable[fid] || [];
     vOnERow.forEach((vs, i) => {
-      const {vpKey, edge} = pairToKeyAndEdge(vs, fid, i);
+      const {vpKey, edge} = pairToKeyAndEdge(vs, i, fid);
       vertexPairTable[vpKey] = vertexPairTable[vpKey] || [];
       vertexPairTable[vpKey].push(edge);
     });
@@ -85,21 +61,21 @@ function makeEdgeTable(vOnETable: {[FID]: Array<[VKey, VKey]>}): EdgeTable {
 
   forEachObj(vertexPairTable, (edges, vpKey) => {
     if (edges.length === 1) {
-      const [, , fid1, i1] = edges[0];
-      edgeTable[fid1][i1] = [0, 0, fid1, i1];
+      const [, , i1, fid1] = edges[0];
+      edgeTable[fid1][i1] = [0, 0, i1, fid1];
     } else {
       const [el, eh] = orderArrays(edges[0], edges[1]);
-      const [x1, y1, fid1, i1] = el;
-      const [x2, y2, fid2, i2] = eh;
-      edgeTable[fid1][i1] = [x2 - x1, y2 - y1, fid2, i2];
-      edgeTable[fid2][i2] = [0, 0, fid2, i2];
+      const [x1, y1, i1, fid1] = el;
+      const [x2, y2, i2, fid2] = eh;
+      edgeTable[fid1][i1] = [x2 - x1, y2 - y1, i2, fid2];
+      edgeTable[fid2][i2] = [0, 0, i2, fid2];
     }
   });
   return edgeTable;
 }
 
 function getMappedEdge(edge: EKey, edgeTable: EdgeTable): EKey {
-  const mappedEdge = edgeTable[edge[2]][edge[3]];
+  const mappedEdge = edgeTable[edge[3]][edge[2]];
   return [
     edge[0] + mappedEdge[0],
     edge[1] + mappedEdge[1],
@@ -151,7 +127,7 @@ function computeElementsAroundVertex(
   const usedEdges = {};
 
   const getOtherFace = (face: FKey, edge: EKey): ?FKey => {
-    const [f1, f2] = shiftEls(fOnE[edge[2]][edge[3]], edge);
+    const [f1, f2] = shiftEls(fOnE[edge[3]][edge[2]], edge);
     if (!f2) {
       return null;
     }
@@ -216,6 +192,7 @@ function reducePointWithShift(
 
 export default class Tesselation {
   props: TesselationProps;
+  faceIDs: Array<FID>;
   _edgeTable: EdgeTable;
   _incidenceCache: IncidenceCache;
   _baseRect: Rect;
@@ -227,11 +204,42 @@ export default class Tesselation {
   constructor(props: TesselationProps) {
     if (!props) {
       throw new Error("new Tesselation: first parameter must be an object");
+    } else if (!Array.isArray(props.periodMatrix) ||
+      props.periodMatrix.length !== 4 ||
+      props.periodMatrix.some(n => n !== Number(n))) {
+      throw new Error("new Tesselation: must pass array of 4 numbers for periodMatrix");
+    } else if (!props.faceVerticesTable) {
+      throw new Error("new Tesselation: must pass an object for faceVerticesTable");
+    } else if (!props.vertexCoordinatesTable) {
+      throw new Error("new Tesselation: must pass an object for vertexCoordinatesTable");
     }
+    forEachObj(props.faceVerticesTable, (vArray, fid) => {
+      if (!Array.isArray(vArray)) {
+        throw new Error("new Tesselation: all values of faceVerticesTable must be arrays; check face " + fid);
+      }
+      vArray.forEach((v, i) => {
+        if (!Array.isArray(v) || v.length !== 3 || Number(v[0]) !== v[0] || Number(v[1]) !== v[1]) {
+          throw new Error("new Tesselation: in faceVerticesTable, " +
+            "all vertices must be [number, number, vertexID]; " +
+            "check face " + fid + " #" + (i + 1));
+        } else if (!props.vertexCoordinatesTable.hasOwnProperty(v[2])) {
+          throw new Error("new Tesselation: in faceVerticesTable, " +
+            "vertexID (third element) of each vertex must be in vertexCoordinatesTable; " +
+            "check face " + fid + " #" + (i + 1));
+        }
+      });
+    });
+    forEachObj(props.vertexCoordinatesTable, (p, vid) => {
+      if (!Array.isArray(p) || p.length !== 2 || Number(p[0]) !== p[0] || Number(p[1]) !== p[1]) {
+        throw new Error("new Tesselation: all values of vertexCoordinatesTable must be [number, number]; check vertex " + vid);
+      }
+    });
+
+    this.faceIDs = Object.keys(props.faceVerticesTable);
     this.props = props;
   }
 
-  getIncidenceCache(): IncidenceCache {
+  _getIncidenceCache(): IncidenceCache {
     if (this._incidenceCache) {
       return this._incidenceCache;
     }
@@ -247,13 +255,13 @@ export default class Tesselation {
     const prelimFOnV: {[VID]: Array<FKey>} = {};
 
     // First, do simple iteration over faces and their vertices.
-    this.props.faces.forEach(fid => {
-      const vs = this.props.getVerticesOnFace(fid);
+    this.faceIDs.forEach(fid => {
+      const vs = this.props.faceVerticesTable[fid];
 
       // vOnF is finished with this.
       cache.vOnF[fid] = vs;
       // eOnF is finished up to using canonical edge names.
-      cache.eOnF[fid] = vs.map((vk, i) => [0, 0, fid, i]);
+      cache.eOnF[fid] = vs.map((vk, i) => [0, 0, i, fid]);
 
       cache.fOnE[fid] = [];
       cache.vOnE[fid] = [];
@@ -261,7 +269,7 @@ export default class Tesselation {
         prelimFOnV[v[2]] = prelimFOnV[v[2]] || [];
         prelimFOnV[v[2]].push([-v[0], -v[1], fid]);
         const nextI = (i + 1) % vs.length;
-        // fOnE is not using canonical edges; these will be collapsed later.
+        // fOnE is not yet using canonical edges; these will be collapsed later.
         cache.fOnE[fid][i] = [[0, 0, fid]];
         // vOnE is finished with this.
         cache.vOnE[fid][i] = [v, vs[nextI]];
@@ -275,15 +283,15 @@ export default class Tesselation {
 
     // Finish fOnE next. This requires identifying which edges are the same and
     // combining their two edge arrays with the appropriate shifting.
-    this.props.faces.forEach(fid => {
+    this.faceIDs.forEach(fid => {
       edgeTable[fid].forEach((edge, i) => {
-        const [ex, ey, enumber, ei] = edge;
-        if (enumber !== fid || ei !== i) {
-          const invEdge = [-ex, -ey, enumber, ei];
+        const [ex, ey, ei, efid] = edge;
+        if (efid !== fid || ei !== i) {
+          const invEdge = [-ex, -ey, ei, efid];
           const oldFOnE1 = cache.fOnE[fid][i];
-          const oldFOnE2 = cache.fOnE[enumber][ei];
+          const oldFOnE2 = cache.fOnE[efid][ei];
           cache.fOnE[fid][i] = [...oldFOnE1, ...shiftEls(oldFOnE2, edge)];
-          cache.fOnE[enumber][ei] = [
+          cache.fOnE[efid][ei] = [
             ...shiftEls(oldFOnE1, invEdge),
             ...oldFOnE2,
           ];
@@ -293,7 +301,7 @@ export default class Tesselation {
 
     // fOnV and eOnV would be easy but for ordering. Use a helper to finish
     // those two.
-    forEachObjNum(prelimFOnV, (preFaces, vid) => {
+    forEachObj(prelimFOnV, (preFaces, vid) => {
       const {faces, edges} = computeElementsAroundVertex(
         vid,
         preFaces,
@@ -312,7 +320,7 @@ export default class Tesselation {
 
   getCanonicalEdge(edge: EKey) {
     // this._edgeTable needs to be populated first.
-    this.getIncidenceCache();
+    this._getIncidenceCache();
     return getMappedEdge(edge, this._edgeTable);
   }
 
@@ -321,7 +329,7 @@ export default class Tesselation {
   }
 
   getEdgesOnFace(face: FKey): Array<EKey> {
-    const base = this.getIncidenceCache().eOnF[face[2]];
+    const base = this._getIncidenceCache().eOnF[face[2]];
     if (!base) {
       throw new Error("Invalid face " + String(face));
     }
@@ -329,7 +337,7 @@ export default class Tesselation {
   }
 
   getVerticesOnFace(face: FKey): Array<VKey> {
-    const base = this.getIncidenceCache().vOnF[face[2]];
+    const base = this._getIncidenceCache().vOnF[face[2]];
     if (!base) {
       throw new Error("Invalid face " + String(face));
     }
@@ -337,8 +345,8 @@ export default class Tesselation {
   }
 
   getFacesOnEdge(edge: EKey): Array<FKey> {
-    let base = this.getIncidenceCache().fOnE[edge[2]];
-    base = base && base[edge[3]];
+    let base = this._getIncidenceCache().fOnE[edge[3]];
+    base = base && base[edge[2]];
     if (!base) {
       throw new Error("Invalid edge " + String(edge));
     }
@@ -346,8 +354,8 @@ export default class Tesselation {
   }
 
   getVerticesOnEdge(edge: EKey): [VKey, VKey] {
-    let base = this.getIncidenceCache().vOnE[edge[2]];
-    base = base && base[edge[3]];
+    let base = this._getIncidenceCache().vOnE[edge[3]];
+    base = base && base[edge[2]];
     if (!base) {
       throw new Error("Invalid edge " + String(edge));
     }
@@ -355,7 +363,7 @@ export default class Tesselation {
   }
 
   getFacesOnVertex(vertex: VKey): Array<FKey> {
-    const base = this.getIncidenceCache().fOnV[vertex[2]];
+    const base = this._getIncidenceCache().fOnV[vertex[2]];
     if (!base) {
       throw new Error("Invalid vertex " + String(vertex));
     }
@@ -363,7 +371,7 @@ export default class Tesselation {
   }
 
   getEdgesOnVertex(vertex: VKey): Array<EKey> {
-    const base = this.getIncidenceCache().eOnV[vertex[2]];
+    const base = this._getIncidenceCache().eOnV[vertex[2]];
     if (!base) {
       throw new Error("Invalid vertex " + String(vertex));
     }
@@ -403,28 +411,28 @@ export default class Tesselation {
   }
 
   getTouchingFaces(face: FKey): Array<FKey> {
-    return unionEls(
+    return union(
       this.getVerticesOnFace(face).map(v => this.getFacesOnVertex(v)),
       [face]
     );
   }
 
   getTouchingEdges(edge: EKey): Array<EKey> {
-    return unionEls(
+    return union(
       this.getVerticesOnEdge(edge).map(v => this.getEdgesOnVertex(v)),
       [this.getCanonicalEdge(edge)]
     );
   }
 
   getSurroundingEdges(edge: EKey): Array<EKey> {
-    return unionEls(
+    return union(
       this.getFacesOnEdge(edge).map(f => this.getEdgesOnFace(f)),
       [this.getCanonicalEdge(edge)]
     );
   }
 
   getSurroundingVertices(vertex: VKey): Array<VKey> {
-    return unionEls(
+    return union(
       this.getFacesOnVertex(vertex).map(f => this.getVerticesOnFace(f)),
       [vertex]
     );
@@ -441,7 +449,7 @@ export default class Tesselation {
 
   getVertexCoordinates(vertex: VKey): Point {
     const [vx, vy, vid] = vertex;
-    const [vidX, vidY] = this.props.getVertexCoordinates(vid);
+    const [vidX, vidY] = this.props.vertexCoordinatesTable[vid];
     const [a, b, c, d] = this.props.periodMatrix;
     return [vx * a + vy * b + vidX, vx * c + vy * d + vidY];
   }
@@ -467,7 +475,7 @@ export default class Tesselation {
     // findFaceCover requires that a face in the 0,0 period intersects the base
     // rectangle, so we position the base rectangle to be centered at the first
     // vertex of the first face in 0,0.
-    const firstFID = this.props.faces[0];
+    const firstFID = this.faceIDs[0];
     const firstFace = [0, 0, firstFID];
     const firstVertex = this.getVerticesOnFace(firstFace)[0];
     const firstVCoords = this.getVertexCoordinates(firstVertex);
@@ -481,7 +489,7 @@ export default class Tesselation {
     const faceCover = findFaceCover(
       baseRect,
       periodMatrix,
-      this.props.faces,
+      this.faceIDs,
       fid => this.getFaceCoordinates([0, 0, fid]),
       fid => this.getTouchingFaces([0, 0, fid])
     );
@@ -516,7 +524,7 @@ export default class Tesselation {
     }
 
     const [, faceCover] = this._computeFaceCover();
-    const edges = unionEls(faceCover.map(k => this.getEdgesOnFace(k)));
+    const edges = union(faceCover.map(k => this.getEdgesOnFace(k)));
     const edgesWithMidpoints = edges.map(k => {
       const [[x1, y1], [x2, y2]] = this.getEdgeCoordinates(k);
       return [[(x1 + x2) / 2, (y1 + y2) / 2], k];
@@ -534,7 +542,7 @@ export default class Tesselation {
     }
 
     const [, faceCover] = this._computeFaceCover();
-    const vertices = unionEls(faceCover.map(k => this.getVerticesOnFace(k)));
+    const vertices = union(faceCover.map(k => this.getVerticesOnFace(k)));
     const verticesWithPoints = vertices.map(k => {
       return [this.getVertexCoordinates(k), k];
     });
@@ -545,8 +553,9 @@ export default class Tesselation {
 
   // Tiny helper to handle changing an arbitrary point into one inside the base
   // rectangle, then using that to query an atlas using that rectangle.
-  _getCandidatesFromAtlas<T>(point: Point, atlas: PolygonAtlas<T>): Array<T> {
-    const {faces: [firstFID], periodMatrix} = this.props;
+  _getCandidatesFromAtlas<T: XKey>(point: Point, atlas: PolygonAtlas<T>): Array<T> {
+    const {periodMatrix} = this.props;
+    const firstFID = this.faceIDs[0];
     const baseRect = this._computeFaceCover()[0];
 
     const [[px, py], reducedPoint] = reducePointWithShift(
@@ -556,7 +565,7 @@ export default class Tesselation {
     );
 
     let candEls: Array<T> = atlas.findPolygons(reducedPoint).map(r => r[1]);
-    candEls = shiftEls(candEls, [px, py, firstFID]);
+    candEls = shiftEls(candEls, ([px, py, firstFID]: FKey));
     return candEls;
   }
 

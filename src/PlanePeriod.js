@@ -1,3 +1,5 @@
+// @flow
+
 import type {Point, Matrix2} from "./math.js";
 
 function invertMatrix2([a, b, c, d]: Matrix2): Matrix2 {

@@ -1,3 +1,5 @@
+// @flow
+
 import type {Point} from "./math.js";
 import {getBoundingBox} from "./math.js";
 import PolygonAtlas from "./PolygonAtlas.js";

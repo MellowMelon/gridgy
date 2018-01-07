@@ -9,11 +9,6 @@ export function forEachObj<K, V>(obj: {[K]: V}, f: (V, string) => mixed) {
   }
 }
 
-// forEachObj but treating the keys as integers
-export function forEachObjNum<K, V>(obj: {[K]: V}, f: (V, number) => mixed) {
-  forEachObj(obj, (v, k) => f(v, parseInt(k)));
-}
-
 export function mapValues<K, V, U>(
   obj: {[K]: V},
   f: (V, string) => U
@@ -23,16 +18,40 @@ export function mapValues<K, V, U>(
   return newObj;
 }
 
-export function orderArrays(
-  a1: $ReadOnlyArray<number>,
-  a2: $ReadOnlyArray<number>
-): [$ReadOnlyArray<number>, $ReadOnlyArray<number>] {
+export function orderArrays<T: $ReadOnlyArray<number | string>>(
+  a1: T,
+  a2: T
+): [T, T] {
   for (let i = 0; i < a1.length; i += 1) {
-    if (a2.length <= i || a1[i] > a2[i]) {
+    // We're okay with string+number inequality comparisons here
+    if (a2.length <= i || (a1[i]: any) > a2[i]) {
       return [a2, a1];
-    } else if (a1[i] < a2[i]) {
+    } else if ((a1[i]: any) < a2[i]) {
       return [a1, a2];
     }
   }
   return [a1, a2];
+}
+
+export function union<T>(
+  nestedArray: Array<Array<T>>,
+  without: ?Array<T>,
+  stringify: T => string = String
+): Array<T> {
+  const seenTable = {};
+  without &&
+    without.forEach(el => {
+      seenTable[stringify(el)] = true;
+    });
+  const ret = [];
+  nestedArray.forEach(elArray => {
+    elArray.forEach(el => {
+      const seenKey = stringify(el);
+      if (!seenTable[seenKey]) {
+        seenTable[seenKey] = true;
+        ret.push(el);
+      }
+    });
+  });
+  return ret;
 }

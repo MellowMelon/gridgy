@@ -68,7 +68,12 @@ describe("findFaceCover", () => {
     );
     ret.sort();
     // [-1, -1, 0]'s polygon does not intersect, but bounding rectangle does.
-    expect(ret).to.deep.equal([[-1, -1, "0"], [-1, 0, "0"], [0, -1, "0"], [0, 0, "0"]]);
+    expect(ret).to.deep.equal([
+      [-1, -1, "0"],
+      [-1, 0, "0"],
+      [0, -1, "0"],
+      [0, 0, "0"],
+    ]);
   });
 
   it("should use getTouchingFaces to deal with bizarre periods", () => {
@@ -89,7 +94,12 @@ describe("findFaceCover", () => {
       ]
     );
     ret.sort();
-    expect(ret).to.deep.equal([[-2, 3, "0"], [0, 0, "0"], [1, -2, "0"], [3, -5, "0"]]);
+    expect(ret).to.deep.equal([
+      [-2, 3, "0"],
+      [0, 0, "0"],
+      [1, -2, "0"],
+      [3, -5, "0"],
+    ]);
   });
 
   it("should deal with tesselations that aren't complete", () => {

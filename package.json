@@ -1,6 +1,25 @@
 {
   "name": "gridgy",
   "version": "0.0.0",
+  "description": "Geometry classes that can find elements at coordinates",
+  "main": "index.js",
+  "author": {
+    "name": "Palmer Mebane"
+  },
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "http://github.com/MellowMelon/gridgy.git"
+  },
+  "keywords": [
+    "geometry",
+    "grid",
+    "hittest",
+    "tesselation"
+  ],
+  "dependencies": {
+    "voronoi": "^1.0.0"
+  },
   "devDependencies": {
     "babel-eslint": "^8.1.2",
     "babel-plugin-transform-object-rest-spread": "^6.26.0",
@@ -25,8 +44,5 @@
     "lint": "eslint --cache \"src/**/*.js\" \"test/**/*.js\"",
     "flow": "flow",
     "check": "npm run pretty && run-p -s lint flow test-min"
-  },
-  "dependencies": {
-    "voronoi": "^1.0.0"
   }
 }

@@ -13,14 +13,14 @@ import {isPointInPolygon} from "../src/math.js";
 // The interface that can be tested by this file. The findXAt methods are the
 // only ones tested; the others are required helpers.
 type ElFinder<F, E, V> = {
-  getSurroundingEdges: E => Array<E>;
-  getSurroundingVertices: V => Array<V>;
-  getFaceCoordinates: F => Array<Point>;
-  getEdgeCoordinates: E => Array<Point>;
-  getVertexCoordinates: V => Point;
-  findFaceAt: Point => ?F;
-  findEdgeAt: Point => ?E;
-  findVertexAt: Point => ?V;
+  getSurroundingEdges: E => Array<E>,
+  getSurroundingVertices: V => Array<V>,
+  getFaceCoordinates: F => Array<Point>,
+  getEdgeCoordinates: E => Array<Point>,
+  getVertexCoordinates: V => Point,
+  findFaceAt: Point => ?F,
+  findEdgeAt: Point => ?E,
+  findVertexAt: Point => ?V,
 };
 
 const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
@@ -35,15 +35,22 @@ export default function doFindElTests<F, E, V>(
   describe("findFaceAt", () => {
     it(
       "should always return a valid face for a complete tesselation",
-      check({times: 1000}, genElFinderName, genPoint, (name: string, p: Point) => {
-        const elFinder = getElFinder(name);
-        const face = elFinder.findFaceAt(p);
-        expect(face).to.be.ok;
-        // if check because flow doesn't know we'd have thrown
-        if (!face) { return; }
-        const polygon = elFinder.getFaceCoordinates(face);
-        expect(isPointInPolygon(p, polygon)).to.equal(true);
-      })
+      check(
+        {times: 1000},
+        genElFinderName,
+        genPoint,
+        (name: string, p: Point) => {
+          const elFinder = getElFinder(name);
+          const face = elFinder.findFaceAt(p);
+          expect(face).to.be.ok;
+          // if check because flow doesn't know we'd have thrown
+          if (!face) {
+            return;
+          }
+          const polygon = elFinder.getFaceCoordinates(face);
+          expect(isPointInPolygon(p, polygon)).to.equal(true);
+        }
+      )
     );
   });
 
@@ -62,29 +69,36 @@ export default function doFindElTests<F, E, V>(
 
     it(
       "should always return the closest edge for a complete tesselation",
-      check({times: 1000}, genElFinderName, genPoint, (name: string, p: Point) => {
-        const elFinder = getElFinder(name);
-        const bestEdge = elFinder.findEdgeAt(p);
-        expect(bestEdge).to.be.ok;
-        // if check because flow doesn't know we'd have thrown
-        if (!bestEdge) { return; }
-        const nearEdges = elFinder.getSurroundingEdges(bestEdge);
-        const bestDistance = getEdgeDist(elFinder, bestEdge, p);
-        const nearDistances = nearEdges.map(k => getEdgeDist(elFinder, k, p));
-        nearDistances.forEach((d, i) => {
-          if (d + DISTANCE_TOLERANCE < bestDistance) {
-            expect.fail(
-              bestEdge,
-              nearEdges[i],
-              "Edge " +
-                String(nearEdges[i]) +
-                " was closer than " +
-                String(bestEdge) +
-                ` (${d} < ${bestDistance})`
-            );
+      check(
+        {times: 1000},
+        genElFinderName,
+        genPoint,
+        (name: string, p: Point) => {
+          const elFinder = getElFinder(name);
+          const bestEdge = elFinder.findEdgeAt(p);
+          expect(bestEdge).to.be.ok;
+          // if check because flow doesn't know we'd have thrown
+          if (!bestEdge) {
+            return;
           }
-        });
-      })
+          const nearEdges = elFinder.getSurroundingEdges(bestEdge);
+          const bestDistance = getEdgeDist(elFinder, bestEdge, p);
+          const nearDistances = nearEdges.map(k => getEdgeDist(elFinder, k, p));
+          nearDistances.forEach((d, i) => {
+            if (d + DISTANCE_TOLERANCE < bestDistance) {
+              expect.fail(
+                bestEdge,
+                nearEdges[i],
+                "Edge " +
+                  String(nearEdges[i]) +
+                  " was closer than " +
+                  String(bestEdge) +
+                  ` (${d} < ${bestDistance})`
+              );
+            }
+          });
+        }
+      )
     );
   });
 
@@ -102,29 +116,38 @@ export default function doFindElTests<F, E, V>(
 
     it(
       "should always return the closest vertex for a complete tesselation",
-      check({times: 1000}, genElFinderName, genPoint, (name: string, p: Point) => {
-        const elFinder = getElFinder(name);
-        const bestVertex = elFinder.findVertexAt(p);
-        expect(bestVertex).to.be.ok;
-        // if check because flow doesn't know we'd have thrown
-        if (!bestVertex) { return; }
-        const nearVertices = elFinder.getSurroundingVertices(bestVertex);
-        const bestDistance = getVertexDist(elFinder, bestVertex, p);
-        const nearDistances = nearVertices.map(k => getVertexDist(elFinder, k, p));
-        nearDistances.forEach((d, i) => {
-          if (d + DISTANCE_TOLERANCE < bestDistance) {
-            expect.fail(
-              bestVertex,
-              nearVertices[i],
-              "Vertex " +
-                String(nearVertices[i]) +
-                " was closer than " +
-                String(bestVertex) +
-                ` (${d} < ${bestDistance})`
-            );
+      check(
+        {times: 1000},
+        genElFinderName,
+        genPoint,
+        (name: string, p: Point) => {
+          const elFinder = getElFinder(name);
+          const bestVertex = elFinder.findVertexAt(p);
+          expect(bestVertex).to.be.ok;
+          // if check because flow doesn't know we'd have thrown
+          if (!bestVertex) {
+            return;
           }
-        });
-      })
+          const nearVertices = elFinder.getSurroundingVertices(bestVertex);
+          const bestDistance = getVertexDist(elFinder, bestVertex, p);
+          const nearDistances = nearVertices.map(k =>
+            getVertexDist(elFinder, k, p)
+          );
+          nearDistances.forEach((d, i) => {
+            if (d + DISTANCE_TOLERANCE < bestDistance) {
+              expect.fail(
+                bestVertex,
+                nearVertices[i],
+                "Vertex " +
+                  String(nearVertices[i]) +
+                  " was closer than " +
+                  String(bestVertex) +
+                  ` (${d} < ${bestDistance})`
+              );
+            }
+          });
+        }
+      )
     );
   });
 }

@@ -204,34 +204,68 @@ export default class Tesselation {
   constructor(props: TesselationProps) {
     if (!props) {
       throw new Error("new Tesselation: first parameter must be an object");
-    } else if (!Array.isArray(props.periodMatrix) ||
+    } else if (
+      !Array.isArray(props.periodMatrix) ||
       props.periodMatrix.length !== 4 ||
-      props.periodMatrix.some(n => n !== Number(n))) {
-      throw new Error("new Tesselation: must pass array of 4 numbers for periodMatrix");
+      props.periodMatrix.some(n => n !== Number(n))
+    ) {
+      throw new Error(
+        "new Tesselation: must pass array of 4 numbers for periodMatrix"
+      );
     } else if (!props.faceVerticesTable) {
-      throw new Error("new Tesselation: must pass an object for faceVerticesTable");
+      throw new Error(
+        "new Tesselation: must pass an object for faceVerticesTable"
+      );
     } else if (!props.vertexCoordinatesTable) {
-      throw new Error("new Tesselation: must pass an object for vertexCoordinatesTable");
+      throw new Error(
+        "new Tesselation: must pass an object for vertexCoordinatesTable"
+      );
     }
     forEachObj(props.faceVerticesTable, (vArray, fid) => {
       if (!Array.isArray(vArray)) {
-        throw new Error("new Tesselation: all values of faceVerticesTable must be arrays; check face " + fid);
+        throw new Error(
+          "new Tesselation: all values of faceVerticesTable must be arrays; check face " +
+            fid
+        );
       }
       vArray.forEach((v, i) => {
-        if (!Array.isArray(v) || v.length !== 3 || Number(v[0]) !== v[0] || Number(v[1]) !== v[1]) {
-          throw new Error("new Tesselation: in faceVerticesTable, " +
-            "all vertices must be [number, number, vertexID]; " +
-            "check face " + fid + " #" + (i + 1));
+        if (
+          !Array.isArray(v) ||
+          v.length !== 3 ||
+          Number(v[0]) !== v[0] ||
+          Number(v[1]) !== v[1]
+        ) {
+          throw new Error(
+            "new Tesselation: in faceVerticesTable, " +
+              "all vertices must be [number, number, vertexID]; " +
+              "check face " +
+              fid +
+              " #" +
+              (i + 1)
+          );
         } else if (!props.vertexCoordinatesTable.hasOwnProperty(v[2])) {
-          throw new Error("new Tesselation: in faceVerticesTable, " +
-            "vertexID (third element) of each vertex must be in vertexCoordinatesTable; " +
-            "check face " + fid + " #" + (i + 1));
+          throw new Error(
+            "new Tesselation: in faceVerticesTable, " +
+              "vertexID (third element) of each vertex must be in vertexCoordinatesTable; " +
+              "check face " +
+              fid +
+              " #" +
+              (i + 1)
+          );
         }
       });
     });
     forEachObj(props.vertexCoordinatesTable, (p, vid) => {
-      if (!Array.isArray(p) || p.length !== 2 || Number(p[0]) !== p[0] || Number(p[1]) !== p[1]) {
-        throw new Error("new Tesselation: all values of vertexCoordinatesTable must be [number, number]; check vertex " + vid);
+      if (
+        !Array.isArray(p) ||
+        p.length !== 2 ||
+        Number(p[0]) !== p[0] ||
+        Number(p[1]) !== p[1]
+      ) {
+        throw new Error(
+          "new Tesselation: all values of vertexCoordinatesTable must be [number, number]; check vertex " +
+            vid
+        );
       }
     });
 
@@ -291,10 +325,7 @@ export default class Tesselation {
           const oldFOnE1 = cache.fOnE[fid][i];
           const oldFOnE2 = cache.fOnE[efid][ei];
           cache.fOnE[fid][i] = [...oldFOnE1, ...shiftEls(oldFOnE2, edge)];
-          cache.fOnE[efid][ei] = [
-            ...shiftEls(oldFOnE1, invEdge),
-            ...oldFOnE2,
-          ];
+          cache.fOnE[efid][ei] = [...shiftEls(oldFOnE1, invEdge), ...oldFOnE2];
         }
       });
     });
@@ -425,10 +456,9 @@ export default class Tesselation {
   }
 
   getSurroundingEdges(edge: EKey): Array<EKey> {
-    return union(
-      this.getFacesOnEdge(edge).map(f => this.getEdgesOnFace(f)),
-      [this.getCanonicalEdge(edge)]
-    );
+    return union(this.getFacesOnEdge(edge).map(f => this.getEdgesOnFace(f)), [
+      this.getCanonicalEdge(edge),
+    ]);
   }
 
   getSurroundingVertices(vertex: VKey): Array<VKey> {
@@ -553,7 +583,10 @@ export default class Tesselation {
 
   // Tiny helper to handle changing an arbitrary point into one inside the base
   // rectangle, then using that to query an atlas using that rectangle.
-  _getCandidatesFromAtlas<T: XKey>(point: Point, atlas: PolygonAtlas<T>): Array<T> {
+  _getCandidatesFromAtlas<T: XKey>(
+    point: Point,
+    atlas: PolygonAtlas<T>
+  ): Array<T> {
     const {periodMatrix} = this.props;
     const firstFID = this.faceIDs[0];
     const baseRect = this._computeFaceCover()[0];

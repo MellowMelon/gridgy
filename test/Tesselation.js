@@ -13,21 +13,25 @@ describe("Tesselation", () => {
 
   const tSquareArgs = {
     periodMatrix: [1, 0, 0, 1],
-    faceVerticesTable: {"0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]]},
+    faceVerticesTable: {
+      "0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]],
+    },
     vertexCoordinatesTable: {"0": [0, 0]},
   };
   const tSquare = new Tesselation(tSquareArgs);
 
   const tHex = new Tesselation({
     periodMatrix: [4, 2, 0, 3],
-    faceVerticesTable: {"0": [
-      [0, 0, "0"],
-      [0, 0, "1"],
-      [1, 0, "0"],
-      [0, 1, "1"],
-      [0, 1, "0"],
-      [-1, 1, "1"],
-    ]},
+    faceVerticesTable: {
+      "0": [
+        [0, 0, "0"],
+        [0, 0, "1"],
+        [1, 0, "0"],
+        [0, 1, "1"],
+        [0, 1, "0"],
+        [-1, 1, "1"],
+      ],
+    },
     vertexCoordinatesTable: {"0": [0, 0], "1": [2, -1]},
   });
 
@@ -67,7 +71,9 @@ describe("Tesselation", () => {
 
   const tSkewedSquare = new Tesselation({
     periodMatrix: [2, 1, 1, 2],
-    faceVerticesTable: {"0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]]},
+    faceVerticesTable: {
+      "0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]],
+    },
     vertexCoordinatesTable: {"0": [0, 0]},
   });
 
@@ -76,13 +82,17 @@ describe("Tesselation", () => {
   // Vertices and faces are offset from each other.
   const tSquareShifted = new Tesselation({
     periodMatrix: [1, 0, 0, 1],
-    faceVerticesTable: {"0": [[2, 4, "0"], [3, 4, "0"], [3, 5, "0"], [2, 5, "0"]]},
+    faceVerticesTable: {
+      "0": [[2, 4, "0"], [3, 4, "0"], [3, 5, "0"], [2, 5, "0"]],
+    },
     vertexCoordinatesTable: {"0": [0, 0]},
   });
   // Alternating columns of squares, so some edges have one face.
   const tSquareStripe = new Tesselation({
     periodMatrix: [2, 0, 0, 1],
-    faceVerticesTable: {"0": [[0, 0, "0"], [0, 0, "1"], [0, 1, "1"], [0, 1, "0"]]},
+    faceVerticesTable: {
+      "0": [[0, 0, "0"], [0, 0, "1"], [0, 1, "1"], [0, 1, "0"]],
+    },
     vertexCoordinatesTable: {"0": [0, 0], "1": [1, 0]},
   });
 
@@ -118,24 +128,26 @@ describe("Tesselation", () => {
     });
 
     it("should error helpfully when faceVerticesTable is wrong", () => {
-      const constructFV = fv => construct({
-        periodMatrix: [1, 0, 0, 1],
-        faceVerticesTable: fv,
-        vertexCoordinatesTable: {"0": [0, 0]},
-      });
-      expect(constructFV(null)).to.throw(Error, "must pass an object for faceVerticesTable");
+      const constructFV = fv =>
+        construct({
+          periodMatrix: [1, 0, 0, 1],
+          faceVerticesTable: fv,
+          vertexCoordinatesTable: {"0": [0, 0]},
+        });
+      expect(constructFV(null)).to.throw(
+        Error,
+        "must pass an object for faceVerticesTable"
+      );
       expect(constructFV({"0": "1"})).to.throw(
         Error,
         "all values of faceVerticesTable must be arrays; check face 0"
       );
-      expect(constructFV({"0": [[1, 1, "0"]], "1": [[1, 1, "0"], [1, 1]]})).to.throw(
-        Error,
-        "[number, number, vertexID]; check face 1 #2"
-      );
-      expect(constructFV({"0": [[1, 1, "0"]], "1": [[1, "0", "0"], [1, 1, "0"]]})).to.throw(
-        Error,
-        "[number, number, vertexID]; check face 1 #1"
-      );
+      expect(
+        constructFV({"0": [[1, 1, "0"]], "1": [[1, 1, "0"], [1, 1]]})
+      ).to.throw(Error, "[number, number, vertexID]; check face 1 #2");
+      expect(
+        constructFV({"0": [[1, 1, "0"]], "1": [[1, "0", "0"], [1, 1, "0"]]})
+      ).to.throw(Error, "[number, number, vertexID]; check face 1 #1");
       expect(constructFV({"0": [[1, 1, "0"]], "1": [[1, 1, "1"]]})).to.throw(
         Error,
         "must be in vertexCoordinatesTable; check face 1 #1"
@@ -143,12 +155,16 @@ describe("Tesselation", () => {
     });
 
     it("should error helpfully when vertexCoordinatesTable is wrong", () => {
-      const constructVC = vc => construct({
-        periodMatrix: [1, 0, 0, 1],
-        faceVerticesTable: {},
-        vertexCoordinatesTable: vc
-      });
-      expect(constructVC(null)).to.throw(Error, "must pass an object for vertexCoordinatesTable");
+      const constructVC = vc =>
+        construct({
+          periodMatrix: [1, 0, 0, 1],
+          faceVerticesTable: {},
+          vertexCoordinatesTable: vc,
+        });
+      expect(constructVC(null)).to.throw(
+        Error,
+        "must pass an object for vertexCoordinatesTable"
+      );
       expect(constructVC({"0": [0, 0], "1": "1"})).to.throw(
         Error,
         "must be [number, number]; check vertex 1"
@@ -274,25 +290,82 @@ describe("Tesselation", () => {
 
     // This is the hardest of the 6 getXOnY methods, so we test it thoroughly.
     it("should return the faces on the edge", () => {
-      expectFOnE("square", [0, 0, 0, "0"]).to.deep.equal([[0, -1, "0"], [0, 0, "0"]]);
-      expectFOnE("square", [2, 4, 0, "0"]).to.deep.equal([[2, 3, "0"], [2, 4, "0"]]);
-      expectFOnE("square", [2, 4, 1, "0"]).to.deep.equal([[2, 4, "0"], [3, 4, "0"]]);
-      expectFOnE("square", [2, 4, 2, "0"]).to.deep.equal([[2, 4, "0"], [2, 5, "0"]]);
-      expectFOnE("square", [2, 4, 3, "0"]).to.deep.equal([[1, 4, "0"], [2, 4, "0"]]);
-      expectFOnE("tri", [2, 4, 1, "0"]).to.deep.equal([[2, 4, "0"], [2, 4, "1"]]);
-      expectFOnE("tri", [2, 4, 1, "1"]).to.deep.equal([[2, 4, "1"], [2, 5, "0"]]);
-      expectFOnE("octagon", [2, 4, 0, "0"]).to.deep.equal([[2, 3, "0"], [2, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 1, "0"]).to.deep.equal([[2, 3, "1"], [2, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 2, "0"]).to.deep.equal([[2, 4, "0"], [3, 3, "0"]]);
-      expectFOnE("octagon", [2, 4, 3, "0"]).to.deep.equal([[2, 4, "0"], [2, 4, "1"]]);
-      expectFOnE("octagon", [2, 4, 4, "0"]).to.deep.equal([[2, 4, "0"], [2, 5, "0"]]);
-      expectFOnE("octagon", [2, 4, 5, "0"]).to.deep.equal([[1, 5, "1"], [2, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 6, "0"]).to.deep.equal([[1, 5, "0"], [2, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 7, "0"]).to.deep.equal([[1, 4, "1"], [2, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 0, "1"]).to.deep.equal([[2, 4, "1"], [3, 3, "0"]]);
-      expectFOnE("octagon", [2, 4, 1, "1"]).to.deep.equal([[2, 4, "1"], [3, 4, "0"]]);
-      expectFOnE("octagon", [2, 4, 2, "1"]).to.deep.equal([[2, 4, "1"], [2, 5, "0"]]);
-      expectFOnE("octagon", [2, 4, 3, "1"]).to.deep.equal([[2, 4, "0"], [2, 4, "1"]]);
+      expectFOnE("square", [0, 0, 0, "0"]).to.deep.equal([
+        [0, -1, "0"],
+        [0, 0, "0"],
+      ]);
+      expectFOnE("square", [2, 4, 0, "0"]).to.deep.equal([
+        [2, 3, "0"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("square", [2, 4, 1, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [3, 4, "0"],
+      ]);
+      expectFOnE("square", [2, 4, 2, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [2, 5, "0"],
+      ]);
+      expectFOnE("square", [2, 4, 3, "0"]).to.deep.equal([
+        [1, 4, "0"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("tri", [2, 4, 1, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [2, 4, "1"],
+      ]);
+      expectFOnE("tri", [2, 4, 1, "1"]).to.deep.equal([
+        [2, 4, "1"],
+        [2, 5, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 0, "0"]).to.deep.equal([
+        [2, 3, "0"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 1, "0"]).to.deep.equal([
+        [2, 3, "1"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 2, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [3, 3, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 3, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [2, 4, "1"],
+      ]);
+      expectFOnE("octagon", [2, 4, 4, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [2, 5, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 5, "0"]).to.deep.equal([
+        [1, 5, "1"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 6, "0"]).to.deep.equal([
+        [1, 5, "0"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 7, "0"]).to.deep.equal([
+        [1, 4, "1"],
+        [2, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 0, "1"]).to.deep.equal([
+        [2, 4, "1"],
+        [3, 3, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 1, "1"]).to.deep.equal([
+        [2, 4, "1"],
+        [3, 4, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 2, "1"]).to.deep.equal([
+        [2, 4, "1"],
+        [2, 5, "0"],
+      ]);
+      expectFOnE("octagon", [2, 4, 3, "1"]).to.deep.equal([
+        [2, 4, "0"],
+        [2, 4, "1"],
+      ]);
       expectFOnE("squareStripe", [2, 4, 0, "0"]).to.deep.equal([
         [2, 3, "0"],
         [2, 4, "0"],
@@ -317,10 +390,22 @@ describe("Tesselation", () => {
     };
 
     it("should return the vertices on the edge", () => {
-      expectVOnE("square", [0, 0, 0, "0"]).to.deep.equal([[0, 0, "0"], [1, 0, "0"]]);
-      expectVOnE("square", [2, 4, 0, "0"]).to.deep.equal([[2, 4, "0"], [3, 4, "0"]]);
-      expectVOnE("tri", [2, 4, 1, "0"]).to.deep.equal([[3, 4, "0"], [2, 5, "0"]]);
-      expectVOnE("tri", [2, 4, 1, "1"]).to.deep.equal([[3, 5, "0"], [2, 5, "0"]]);
+      expectVOnE("square", [0, 0, 0, "0"]).to.deep.equal([
+        [0, 0, "0"],
+        [1, 0, "0"],
+      ]);
+      expectVOnE("square", [2, 4, 0, "0"]).to.deep.equal([
+        [2, 4, "0"],
+        [3, 4, "0"],
+      ]);
+      expectVOnE("tri", [2, 4, 1, "0"]).to.deep.equal([
+        [3, 4, "0"],
+        [2, 5, "0"],
+      ]);
+      expectVOnE("tri", [2, 4, 1, "1"]).to.deep.equal([
+        [3, 5, "0"],
+        [2, 5, "0"],
+      ]);
       expectVOnE("squareStripe", [2, 4, 0, "0"]).to.deep.equal([
         [2, 4, "0"],
         [2, 4, "1"],
@@ -582,12 +667,36 @@ describe("Tesselation", () => {
     });
 
     it("should return the other face on the edge", () => {
-      expectOtherF("square", [0, 0, "0"], [1, 0, 3, "0"]).to.deep.equal([1, 0, "0"]);
-      expectOtherF("square", [1, 0, "0"], [1, 0, 3, "0"]).to.deep.equal([0, 0, "0"]);
-      expectOtherF("square", [2, 4, "0"], [2, 5, 0, "0"]).to.deep.equal([2, 5, "0"]);
-      expectOtherF("square", [2, 5, "0"], [2, 5, 0, "0"]).to.deep.equal([2, 4, "0"]);
-      expectOtherF("octagon", [2, 4, "0"], [2, 4, 1, "0"]).to.deep.equal([2, 3, "1"]);
-      expectOtherF("octagon", [2, 3, "1"], [2, 4, 1, "0"]).to.deep.equal([2, 4, "0"]);
+      expectOtherF("square", [0, 0, "0"], [1, 0, 3, "0"]).to.deep.equal([
+        1,
+        0,
+        "0",
+      ]);
+      expectOtherF("square", [1, 0, "0"], [1, 0, 3, "0"]).to.deep.equal([
+        0,
+        0,
+        "0",
+      ]);
+      expectOtherF("square", [2, 4, "0"], [2, 5, 0, "0"]).to.deep.equal([
+        2,
+        5,
+        "0",
+      ]);
+      expectOtherF("square", [2, 5, "0"], [2, 5, 0, "0"]).to.deep.equal([
+        2,
+        4,
+        "0",
+      ]);
+      expectOtherF("octagon", [2, 4, "0"], [2, 4, 1, "0"]).to.deep.equal([
+        2,
+        3,
+        "1",
+      ]);
+      expectOtherF("octagon", [2, 3, "1"], [2, 4, 1, "0"]).to.deep.equal([
+        2,
+        4,
+        "0",
+      ]);
     });
   });
 
@@ -606,12 +715,36 @@ describe("Tesselation", () => {
     });
 
     it("should return the other vertex on the edge", () => {
-      expectOtherV("square", [0, 0, "0"], [0, 0, 0, "0"]).to.deep.equal([1, 0, "0"]);
-      expectOtherV("square", [1, 0, "0"], [0, 0, 0, "0"]).to.deep.equal([0, 0, "0"]);
-      expectOtherV("square", [2, 4, "0"], [2, 4, 3, "0"]).to.deep.equal([2, 5, "0"]);
-      expectOtherV("square", [2, 5, "0"], [2, 4, 3, "0"]).to.deep.equal([2, 4, "0"]);
-      expectOtherV("octagon", [2, 4, "1"], [2, 3, 3, "0"]).to.deep.equal([2, 3, "3"]);
-      expectOtherV("octagon", [2, 3, "3"], [2, 3, 3, "0"]).to.deep.equal([2, 4, "1"]);
+      expectOtherV("square", [0, 0, "0"], [0, 0, 0, "0"]).to.deep.equal([
+        1,
+        0,
+        "0",
+      ]);
+      expectOtherV("square", [1, 0, "0"], [0, 0, 0, "0"]).to.deep.equal([
+        0,
+        0,
+        "0",
+      ]);
+      expectOtherV("square", [2, 4, "0"], [2, 4, 3, "0"]).to.deep.equal([
+        2,
+        5,
+        "0",
+      ]);
+      expectOtherV("square", [2, 5, "0"], [2, 4, 3, "0"]).to.deep.equal([
+        2,
+        4,
+        "0",
+      ]);
+      expectOtherV("octagon", [2, 4, "1"], [2, 3, 3, "0"]).to.deep.equal([
+        2,
+        3,
+        "3",
+      ]);
+      expectOtherV("octagon", [2, 3, "3"], [2, 3, 3, "0"]).to.deep.equal([
+        2,
+        4,
+        "1",
+      ]);
     });
   });
 
@@ -914,7 +1047,11 @@ describe("Tesselation", () => {
         [3, 5],
         [2, 5],
       ]);
-      expectFaceC("tri", [2, 4, "1"]).to.deep.equal([[10, 8], [11, 10], [9, 10]]);
+      expectFaceC("tri", [2, 4, "1"]).to.deep.equal([
+        [10, 8],
+        [11, 10],
+        [9, 10],
+      ]);
       expectFaceC("octagon", [2, 4, "0"]).to.deep.equal([
         [16, 8],
         [17, 7],
@@ -957,7 +1094,10 @@ describe("Tesselation", () => {
         [2, 4],
         [3, 4],
       ]);
-      expectEdgeC("squareStripe", [2, 4, 0, "0"]).to.deep.equal([[4, 4], [5, 4]]);
+      expectEdgeC("squareStripe", [2, 4, 0, "0"]).to.deep.equal([
+        [4, 4],
+        [5, 4],
+      ]);
     });
   });
 

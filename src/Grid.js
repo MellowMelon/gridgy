@@ -14,7 +14,7 @@ type VKey = string;
 import {getBoundingBox} from "./math.js";
 import Tesselation from "./Tesselation.js";
 
-type GeometryProps = {
+type GridProps = {
   tesselation: Tesselation,
   faceList: Array<FKey>,
   origin?: Point,
@@ -31,7 +31,34 @@ function withDefault<T>(value: ?T, defaultValue: T): T {
   return value == null ? defaultValue : value;
 }
 
-export default class GridGeometry {
+function defaultFromFaceTessKey(tessFace) {
+  return "f," + tessFace.join(",");
+}
+
+function defaultFromEdgeTessKey(tessEdge) {
+  return "e," + tessEdge.join(",");
+}
+
+function defaultFromVertexTessKey(tessVertex) {
+  return "v," + tessVertex.join(",");
+}
+
+function defaultToFaceTessKey(face) {
+  const cs = face.split(",").slice(1);
+  return [parseInt(cs[0]), parseInt(cs[1]), cs[2]];
+}
+
+function defaultToEdgeTessKey(edge) {
+  const cs = edge.split(",").slice(1);
+  return [parseInt(cs[0]), parseInt(cs[1]), parseInt(cs[2]), cs[3]];
+}
+
+function defaultToVertexTessKey(vertex) {
+  const cs = vertex.split(",").slice(1);
+  return [parseInt(cs[0]), parseInt(cs[1]), cs[2]];
+}
+
+export default class Grid {
   tesselation: Tesselation;
   faceList: Array<FKey>;
   origin: Point;
@@ -49,41 +76,44 @@ export default class GridGeometry {
   _vertexSet: Set<VKey>;
   _boundingBox: Rect;
 
-  constructor(props: GeometryProps) {
+  constructor(props: GridProps) {
     if (!props) {
-      throw new Error("new GridGeometry: first parameter must be an object");
+      throw new Error("new Grid: first parameter must be an object");
     } else if (!props.tesselation) {
-      throw new Error("new GridGeometry: must pass tesselation");
+      throw new Error("new Grid: must pass tesselation");
     } else if (!props.faceList) {
-      throw new Error("new GridGeometry: must pass faceList");
+      throw new Error("new Grid: must pass faceList");
     }
     this.tesselation = props.tesselation;
     this.faceList = props.faceList;
     this.origin = withDefault(props.origin, [0, 0]);
     this.scale = withDefault(props.scale, 1);
-    const defaultFromKey = k => k.join(",");
-    this.fromFaceTessKey = withDefault(props.fromFaceTessKey, defaultFromKey);
-    this.fromEdgeTessKey = withDefault(props.fromEdgeTessKey, defaultFromKey);
+
+    this.fromFaceTessKey = withDefault(props.fromFaceTessKey, defaultFromFaceTessKey);
+    this.fromEdgeTessKey = withDefault(props.fromEdgeTessKey, defaultFromEdgeTessKey);
     this.fromVertexTessKey = withDefault(
       props.fromVertexTessKey,
-      defaultFromKey
+      defaultFromVertexTessKey
     );
-    const defaultToKey3 = k => {
-      const parts = k.split(",");
-      return [parseInt(parts[0]), parseInt(parts[1]), parts[2]];
+
+    this.toFaceTessKey = withDefault(props.toFaceTessKey, defaultToFaceTessKey);
+    this.toEdgeTessKey = withDefault(props.toEdgeTessKey, defaultToEdgeTessKey);
+    this.toVertexTessKey = withDefault(props.toVertexTessKey, defaultToVertexTessKey);
+  }
+
+  getProps(): GridProps {
+    return {
+      tesselation: this.tesselation,
+      faceList: this.faceList,
+      origin: this.origin,
+      scale: this.scale,
+      fromFaceTessKey: this.fromFaceTessKey,
+      fromEdgeTessKey: this.fromEdgeTessKey,
+      fromVertexTessKey: this.fromVertexTessKey,
+      toFaceTessKey: this.toFaceTessKey,
+      toEdgeTessKey: this.toEdgeTessKey,
+      toVertexTessKey: this.toVertexTessKey,
     };
-    const defaultToKey4 = k => {
-      const parts = k.split(",");
-      return [
-        parseInt(parts[0]),
-        parseInt(parts[1]),
-        parseInt(parts[2]),
-        parts[3],
-      ];
-    };
-    this.toFaceTessKey = withDefault(props.toFaceTessKey, defaultToKey3);
-    this.toEdgeTessKey = withDefault(props.toEdgeTessKey, defaultToKey4);
-    this.toVertexTessKey = withDefault(props.toVertexTessKey, defaultToKey3);
   }
 
   // Sets _faceSet variable if not set already.

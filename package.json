@@ -1,6 +1,6 @@
 {
   "name": "gridgy",
-  "version": "0.0.0",
+  "version": "1.0.0",
   "description": "Geometry classes that can find elements at coordinates",
   "main": "dist/main.umd.js",
   "module": "dist/main.esm.js",

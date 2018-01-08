@@ -1,4 +1,4 @@
 import Tesselation from "./Tesselation.js";
-import GridGeometry from "./GridGeometry.js";
+import Grid from "./Grid.js";
 
-export {Tesselation, GridGeometry};
+export {Tesselation, Grid};

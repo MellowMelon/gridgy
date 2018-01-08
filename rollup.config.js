@@ -12,7 +12,6 @@ function makeBabelPlugin() {
     ],
     plugins: [
       "external-helpers",
-      "transform-object-rest-spread",
     ],
   });
 }
@@ -35,7 +34,6 @@ function getConfig(options = {}) {
       file: outPath,
       format: keepModules ? "es" : "umd",
       name: "Gridgy",
-      sourcemap: true,
     },
   };
 }

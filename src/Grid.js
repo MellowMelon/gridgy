@@ -7,14 +7,15 @@ import type {
   VKey as VTess,
 } from "./Tesselation.types.js";
 
-type FKey = string;
-type EKey = string;
-type VKey = string;
-
 import {getBoundingBox} from "./math.js";
 import Tesselation from "./Tesselation.js";
 
-type GridProps = {
+type ElToStringFunc<FKey, EKey, VKey> = (
+  FKey | EKey | VKey,
+  "f" | "e" | "v"
+) => string;
+
+type GridProps<FKey, EKey, VKey> = {
   tesselation: Tesselation,
   faceList: Array<FKey>,
   origin?: Point,
@@ -25,40 +26,14 @@ type GridProps = {
   toFaceTessKey?: FKey => FTess,
   toEdgeTessKey?: EKey => ETess,
   toVertexTessKey?: VKey => VTess,
+  elToString?: ElToStringFunc<FKey, EKey, VKey>,
 };
 
 function withDefault<T>(value: ?T, defaultValue: T): T {
   return value == null ? defaultValue : value;
 }
 
-function defaultFromFaceTessKey(tessFace) {
-  return "f," + tessFace.join(",");
-}
-
-function defaultFromEdgeTessKey(tessEdge) {
-  return "e," + tessEdge.join(",");
-}
-
-function defaultFromVertexTessKey(tessVertex) {
-  return "v," + tessVertex.join(",");
-}
-
-function defaultToFaceTessKey(face) {
-  const cs = face.split(",").slice(1);
-  return [parseInt(cs[0]), parseInt(cs[1]), cs[2]];
-}
-
-function defaultToEdgeTessKey(edge) {
-  const cs = edge.split(",").slice(1);
-  return [parseInt(cs[0]), parseInt(cs[1]), parseInt(cs[2]), cs[3]];
-}
-
-function defaultToVertexTessKey(vertex) {
-  const cs = vertex.split(",").slice(1);
-  return [parseInt(cs[0]), parseInt(cs[1]), cs[2]];
-}
-
-export default class Grid {
+export default class Grid<FKey, EKey, VKey> {
   tesselation: Tesselation;
   faceList: Array<FKey>;
   origin: Point;
@@ -69,14 +44,15 @@ export default class Grid {
   toFaceTessKey: FKey => FTess;
   toEdgeTessKey: EKey => ETess;
   toVertexTessKey: VKey => VTess;
-  _faceSet: Set<FKey>;
+  elToString: ElToStringFunc<FKey, EKey, VKey>;
+  _faceSet: Set<string>;
   _edgeList: Array<EKey>;
-  _edgeSet: Set<EKey>;
+  _edgeSet: Set<string>;
   _vertexList: Array<VKey>;
-  _vertexSet: Set<VKey>;
+  _vertexSet: Set<string>;
   _boundingBox: Rect;
 
-  constructor(props: GridProps) {
+  constructor(props: GridProps<FKey, EKey, VKey>) {
     if (!props) {
       throw new Error("new Grid: first parameter must be an object");
     } else if (!props.tesselation) {
@@ -89,19 +65,18 @@ export default class Grid {
     this.origin = withDefault(props.origin, [0, 0]);
     this.scale = withDefault(props.scale, 1);
 
-    this.fromFaceTessKey = withDefault(props.fromFaceTessKey, defaultFromFaceTessKey);
-    this.fromEdgeTessKey = withDefault(props.fromEdgeTessKey, defaultFromEdgeTessKey);
-    this.fromVertexTessKey = withDefault(
-      props.fromVertexTessKey,
-      defaultFromVertexTessKey
-    );
+    const id = x => (x: any);
+    this.fromFaceTessKey = withDefault(props.fromFaceTessKey, id);
+    this.fromEdgeTessKey = withDefault(props.fromEdgeTessKey, id);
+    this.fromVertexTessKey = withDefault(props.fromVertexTessKey, id);
+    this.toFaceTessKey = withDefault(props.toFaceTessKey, id);
+    this.toEdgeTessKey = withDefault(props.toEdgeTessKey, id);
+    this.toVertexTessKey = withDefault(props.toVertexTessKey, id);
 
-    this.toFaceTessKey = withDefault(props.toFaceTessKey, defaultToFaceTessKey);
-    this.toEdgeTessKey = withDefault(props.toEdgeTessKey, defaultToEdgeTessKey);
-    this.toVertexTessKey = withDefault(props.toVertexTessKey, defaultToVertexTessKey);
+    this.elToString = withDefault(props.elToString, String);
   }
 
-  getProps(): GridProps {
+  getProps(): GridProps<FKey, EKey, VKey> {
     return {
       tesselation: this.tesselation,
       faceList: this.faceList,
@@ -122,7 +97,9 @@ export default class Grid {
       return;
     }
     this._faceSet = new Set();
-    this.faceList.forEach(f => this._faceSet.add(f));
+    this.faceList.forEach(f =>
+      this._faceSet.add(this.elToString(f, "f"))
+    );
   }
 
   // Sets _edgeList and _edgeSet variables if not set already.
@@ -136,9 +113,10 @@ export default class Grid {
       const tessF = this.toFaceTessKey(f);
       this.tesselation.getEdgesOnFace(tessF).forEach(tessE => {
         const e = this.fromEdgeTessKey(tessE);
-        if (!edgeSet.has(e)) {
+        const eStr = this.elToString(e, "e");
+        if (!edgeSet.has(eStr)) {
           edgeList.push(e);
-          edgeSet.add(e);
+          edgeSet.add(eStr);
         }
       });
     });
@@ -157,9 +135,10 @@ export default class Grid {
       const tessF = this.toFaceTessKey(f);
       this.tesselation.getVerticesOnFace(tessF).forEach(tessV => {
         const v = this.fromVertexTessKey(tessV);
-        if (!vertexSet.has(v)) {
+        const vStr = this.elToString(v, "v");
+        if (!vertexSet.has(vStr)) {
           vertexList.push(v);
-          vertexSet.add(v);
+          vertexSet.add(vStr);
         }
       });
     });
@@ -183,17 +162,17 @@ export default class Grid {
 
   hasFace(face: FKey): boolean {
     this._computeFaceSet();
-    return this._faceSet.has(face);
+    return this._faceSet.has(this.elToString(face, "f"));
   }
 
   hasEdge(edge: EKey): boolean {
     this._computeEdgeListAndSet();
-    return this._edgeSet.has(edge);
+    return this._edgeSet.has(this.elToString(edge, "e"));
   }
 
   hasVertex(vertex: VKey): boolean {
     this._computeVertexListAndSet();
-    return this._vertexSet.has(vertex);
+    return this._vertexSet.has(this.elToString(vertex, "v"));
   }
 
   getEdgesOnFace(face: FKey): Array<EKey> {

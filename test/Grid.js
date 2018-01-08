@@ -45,7 +45,7 @@ describe("Grid", () => {
     },
   };
 
-  const facesTwo = ["f,0,0,0", "f,1,0,0", "f,0,1,0", "f,1,1,0"];
+  const facesTwo = [[0, 0, "0"], [1, 0, "0"], [0, 1, "0"], [1, 1, "0"]];
   const gTwo = new Grid({
     tesselation: tSquare,
     faceList: facesTwo,
@@ -65,15 +65,15 @@ describe("Grid", () => {
   });
 
   const facesThree = [
-    "f,0,0,0",
-    "f,1,0,0",
-    "f,2,0,0",
-    "f,0,1,0",
-    "f,1,1,0",
-    "f,2,1,0",
-    "f,0,2,0",
-    "f,1,2,0",
-    "f,2,2,0",
+    [0, 0, "0"],
+    [1, 0, "0"],
+    [2, 0, "0"],
+    [0, 1, "0"],
+    [1, 1, "0"],
+    [2, 1, "0"],
+    [0, 2, "0"],
+    [1, 2, "0"],
+    [2, 2, "0"],
   ];
   const gThree = new Grid({
     tesselation: tSquare,
@@ -81,7 +81,13 @@ describe("Grid", () => {
     ...coordArgs,
   });
 
-  const facesU = ["f,0,0,0", "f,1,0,0", "f,2,0,0", "f,0,1,0", "f,2,1,0"];
+  const facesU = [
+    [0, 0, "0"],
+    [1, 0, "0"],
+    [2, 0, "0"],
+    [0, 1, "0"],
+    [2, 1, "0"],
+  ];
   const gUPentomino = new Grid({
     tesselation: tSquare,
     faceList: facesU,
@@ -147,18 +153,18 @@ describe("Grid", () => {
     it("should return all edges without duplicates", () => {
       // Order is undefined, so using sort to enforce consistency in test
       expect(gTwo.getEdgeList().sort()).to.deep.equal([
-        "e,0,0,0,0",
-        "e,0,0,3,0",
-        "e,0,1,0,0",
-        "e,0,1,3,0",
-        "e,0,2,0,0",
-        "e,1,0,0,0",
-        "e,1,0,3,0",
-        "e,1,1,0,0",
-        "e,1,1,3,0",
-        "e,1,2,0,0",
-        "e,2,0,3,0",
-        "e,2,1,3,0",
+        [0, 0, 0, "0"],
+        [0, 0, 3, "0"],
+        [0, 1, 0, "0"],
+        [0, 1, 3, "0"],
+        [0, 2, 0, "0"],
+        [1, 0, 0, "0"],
+        [1, 0, 3, "0"],
+        [1, 1, 0, "0"],
+        [1, 1, 3, "0"],
+        [1, 2, 0, "0"],
+        [2, 0, 3, "0"],
+        [2, 1, 3, "0"],
       ]);
     });
 
@@ -184,18 +190,18 @@ describe("Grid", () => {
     it("should return all vertices without duplicates", () => {
       // Order is undefined, so using sort to enforce consistency in test
       expect(gUPentomino.getVertexList().sort()).to.deep.equal([
-        "v,0,0,0",
-        "v,0,1,0",
-        "v,0,2,0",
-        "v,1,0,0",
-        "v,1,1,0",
-        "v,1,2,0",
-        "v,2,0,0",
-        "v,2,1,0",
-        "v,2,2,0",
-        "v,3,0,0",
-        "v,3,1,0",
-        "v,3,2,0",
+        [0, 0, "0"],
+        [0, 1, "0"],
+        [0, 2, "0"],
+        [1, 0, "0"],
+        [1, 1, "0"],
+        [1, 2, "0"],
+        [2, 0, "0"],
+        [2, 1, "0"],
+        [2, 2, "0"],
+        [3, 0, "0"],
+        [3, 1, "0"],
+        [3, 2, "0"],
       ]);
     });
 
@@ -216,43 +222,43 @@ describe("Grid", () => {
 
   describe("hasFace", () => {
     const expectHasF = function(gName, face) {
-      return expect(gTable[gName].hasFace(face), gName + " " + face);
+      return expect(gTable[gName].hasFace(face), gName + " " + String(face));
     };
 
     it("should return whether the face is in the geometry", () => {
-      expectHasF(2, "f,0,0,0").to.equal(true);
-      expectHasF(2, "f,1,1,0").to.equal(true);
-      expectHasF(2, "f,2,0,0").to.equal(false);
-      expectHasF(2, "v,0,0,0").to.equal(false);
+      expectHasF(2, [0, 0, "0"]).to.equal(true);
+      expectHasF(2, [1, 1, "0"]).to.equal(true);
+      expectHasF(2, [2, 0, "0"]).to.equal(false);
       expectHasF(2, "bad").to.equal(false);
     });
   });
 
   describe("hasEdge", () => {
     const expectHasE = function(gName, edge) {
-      return expect(gTable[gName].hasEdge(edge), gName + " " + edge);
+      return expect(gTable[gName].hasEdge(edge), gName + " " + String(edge));
     };
 
     it("should return whether the edge is in the geometry", () => {
-      expectHasE(2, "e,0,0,0,0").to.equal(true);
-      expectHasE(2, "e,1,1,3,0").to.equal(true);
-      expectHasE(2, "e,2,0,0,0").to.equal(false);
-      expectHasE(2, "e,0,0,0").to.equal(false);
-      expectHasE(2, "f,0,0,0").to.equal(false);
+      expectHasE(2, [0, 0, 0, "0"]).to.equal(true);
+      expectHasE(2, [1, 1, 3, "0"]).to.equal(true);
+      expectHasE(2, [2, 0, 0, "0"]).to.equal(false);
+      expectHasE(2, [0, 0, "0"]).to.equal(false);
       expectHasE(2, "bad").to.equal(false);
     });
   });
 
   describe("hasVertex", () => {
     const expectHasV = function(gName, vertex) {
-      return expect(gTable[gName].hasVertex(vertex), gName + " " + vertex);
+      return expect(
+        gTable[gName].hasVertex(vertex),
+        gName + " " + String(vertex)
+      );
     };
 
     it("should return whether the vertex is in the geometry", () => {
-      expectHasV(2, "v,0,0,0").to.equal(true);
-      expectHasV(2, "v,2,2,0").to.equal(true);
-      expectHasV(2, "v,3,0,0").to.equal(false);
-      expectHasV(2, "f,0,0,0").to.equal(false);
+      expectHasV(2, [0, 0, "0"]).to.equal(true);
+      expectHasV(2, [2, 2, "0"]).to.equal(true);
+      expectHasV(2, [3, 0, "0"]).to.equal(false);
       expectHasV(2, "bad").to.equal(false);
     });
   });
@@ -264,13 +270,13 @@ describe("Grid", () => {
       const expEdges = tessEdges.map(el => gTable[gName].fromEdgeTessKey(el));
       return expect(
         gTable[gName].getEdgesOnFace(face),
-        gName + " " + face
+        gName + " " + String(face)
       ).to.deep.equal(expEdges);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "f,0,0,0");
-      verify("U", "f,1,2,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [1, 2, "0"]);
     });
   });
 
@@ -283,13 +289,13 @@ describe("Grid", () => {
       );
       return expect(
         gTable[gName].getVerticesOnFace(face),
-        gName + " " + face
+        gName + " " + String(face)
       ).to.deep.equal(expVertices);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "f,0,0,0");
-      verify("U", "f,1,2,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [1, 2, "0"]);
     });
   });
 
@@ -300,13 +306,13 @@ describe("Grid", () => {
       const expFaces = tessFaces.map(el => gTable[gName].fromFaceTessKey(el));
       return expect(
         gTable[gName].getFacesOnEdge(edge),
-        gName + " " + edge
+        gName + " " + String(edge)
       ).to.deep.equal(expFaces);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "e,0,0,0,0");
-      verify("U", "e,1,2,3,0");
+      verify(2, [0, 0, 0, "0"]);
+      verify("U", [1, 2, 3, "0"]);
     });
   });
 
@@ -319,13 +325,13 @@ describe("Grid", () => {
       );
       return expect(
         gTable[gName].getVerticesOnEdge(edge),
-        gName + " " + edge
+        gName + " " + String(edge)
       ).to.deep.equal(expVertices);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "e,0,0,0,0");
-      verify("U", "e,1,2,3,0");
+      verify(2, [0, 0, 0, "0"]);
+      verify("U", [1, 2, 3, "0"]);
     });
   });
 
@@ -336,13 +342,13 @@ describe("Grid", () => {
       const expFaces = tessFaces.map(el => gTable[gName].fromFaceTessKey(el));
       return expect(
         gTable[gName].getFacesOnVertex(vertex),
-        gName + " " + vertex
+        gName + " " + String(vertex)
       ).to.deep.equal(expFaces);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "v,0,0,0");
-      verify("U", "v,2,3,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [2, 3, "0"]);
     });
   });
 
@@ -353,13 +359,13 @@ describe("Grid", () => {
       const expEdges = tessEdges.map(el => gTable[gName].fromEdgeTessKey(el));
       return expect(
         gTable[gName].getEdgesOnVertex(vertex),
-        gName + " " + vertex
+        gName + " " + String(vertex)
       ).to.deep.equal(expEdges);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "v,0,0,0");
-      verify("U", "v,2,3,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [2, 3, "0"]);
     });
   });
 
@@ -367,16 +373,18 @@ describe("Grid", () => {
     const verify = function(gName, face) {
       const tessFace = gTable[gName].toFaceTessKey(face);
       const tessExpFaces = tSquare.getAdjacentFaces(tessFace);
-      const expFaces = tessExpFaces.map(el => gTable[gName].fromFaceTessKey(el));
+      const expFaces = tessExpFaces.map(el =>
+        gTable[gName].fromFaceTessKey(el)
+      );
       return expect(
         gTable[gName].getAdjacentFaces(face),
-        gName + " " + face
+        gName + " " + String(face)
       ).to.deep.equal(expFaces);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "f,0,0,0");
-      verify("U", "f,1,2,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [1, 2, "0"]);
     });
   });
 
@@ -384,16 +392,18 @@ describe("Grid", () => {
     const verify = function(gName, face) {
       const tessFace = gTable[gName].toFaceTessKey(face);
       const tessExpFaces = tSquare.getTouchingFaces(tessFace);
-      const expFaces = tessExpFaces.map(el => gTable[gName].fromFaceTessKey(el));
+      const expFaces = tessExpFaces.map(el =>
+        gTable[gName].fromFaceTessKey(el)
+      );
       return expect(
         gTable[gName].getTouchingFaces(face),
-        gName + " " + face
+        gName + " " + String(face)
       ).to.deep.equal(expFaces);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "f,0,0,0");
-      verify("U", "f,1,2,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [1, 2, "0"]);
     });
   });
 
@@ -401,16 +411,18 @@ describe("Grid", () => {
     const verify = function(gName, edge) {
       const tessEdge = gTable[gName].toEdgeTessKey(edge);
       const tessExpEdges = tSquare.getSurroundingEdges(tessEdge);
-      const expEdges = tessExpEdges.map(el => gTable[gName].fromEdgeTessKey(el));
+      const expEdges = tessExpEdges.map(el =>
+        gTable[gName].fromEdgeTessKey(el)
+      );
       return expect(
         gTable[gName].getSurroundingEdges(edge),
-        gName + " " + edge
+        gName + " " + String(edge)
       ).to.deep.equal(expEdges);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "e,0,0,0,0");
-      verify("U", "e,1,2,3,0");
+      verify(2, [0, 0, 0, "0"]);
+      verify("U", [1, 2, 3, "0"]);
     });
   });
 
@@ -418,16 +430,18 @@ describe("Grid", () => {
     const verify = function(gName, edge) {
       const tessEdge = gTable[gName].toEdgeTessKey(edge);
       const tessExpEdges = tSquare.getTouchingEdges(tessEdge);
-      const expEdges = tessExpEdges.map(el => gTable[gName].fromEdgeTessKey(el));
+      const expEdges = tessExpEdges.map(el =>
+        gTable[gName].fromEdgeTessKey(el)
+      );
       return expect(
         gTable[gName].getTouchingEdges(edge),
-        gName + " " + edge
+        gName + " " + String(edge)
       ).to.deep.equal(expEdges);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "e,0,0,0,0");
-      verify("U", "e,1,2,3,0");
+      verify(2, [0, 0, 0, "0"]);
+      verify("U", [1, 2, 3, "0"]);
     });
   });
 
@@ -440,13 +454,13 @@ describe("Grid", () => {
       );
       return expect(
         gTable[gName].getSurroundingVertices(vertex),
-        gName + " " + vertex
+        gName + " " + String(vertex)
       ).to.deep.equal(expVertices);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "v,0,0,0");
-      verify("U", "v,2,3,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [2, 3, "0"]);
     });
   });
 
@@ -459,13 +473,13 @@ describe("Grid", () => {
       );
       return expect(
         gTable[gName].getAdjacentVertices(vertex),
-        gName + " " + vertex
+        gName + " " + String(vertex)
       ).to.deep.equal(expVertices);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "v,0,0,0");
-      verify("U", "v,2,3,0");
+      verify(2, [0, 0, "0"]);
+      verify("U", [2, 3, "0"]);
     });
   });
 
@@ -477,14 +491,14 @@ describe("Grid", () => {
       const expFace = tessExpFace && gTable[gName].fromFaceTessKey(tessExpFace);
       return expect(
         gTable[gName].getOtherFace(face, edge),
-        gName + " " + face + " " + edge
+        gName + " " + String(face) + " " + String(edge)
       ).to.deep.equal(expFace);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "f,0,0,0", "e,1,0,3,0");
-      verify(2, "f,0,0,0", "e,0,1,3,0"); // null
-      verify("U", "f,1,2,0", "e,1,2,0,0");
+      verify(2, [0, 0, "0"], [1, 0, 3, "0"]);
+      verify(2, [0, 0, "0"], [0, 1, 3, "0"]); // null
+      verify("U", [1, 2, "0"], [1, 2, 0, "0"]);
     });
   });
 
@@ -497,77 +511,86 @@ describe("Grid", () => {
         tessExpVertex && gTable[gName].fromVertexTessKey(tessExpVertex);
       return expect(
         gTable[gName].getOtherVertex(vertex, edge),
-        gName + " " + vertex + " " + edge
+        gName + " " + String(vertex) + " " + String(edge)
       ).to.deep.equal(expVertex);
     };
 
     it("should be based on the tesselation method", () => {
-      verify(2, "v,0,0,0", "e,0,0,3,0");
-      verify(2, "v,0,0,0", "e,1,0,3,0"); // null
-      verify("U", "v,2,3,0", "e,1,3,0,0");
+      verify(2, [0, 0, "0"], [0, 0, 3, "0"]);
+      verify(2, [0, 0, "0"], [1, 0, 3, "0"]); // null
+      verify("U", [2, 3, "0"], [1, 3, 0, "0"]);
     });
   });
 
   describe("isEdgeInside", () => {
     const expectE = function(gName, edge) {
-      return expect(gTable[gName].isEdgeInside(edge), gName + " " + edge);
+      return expect(
+        gTable[gName].isEdgeInside(edge),
+        gName + " " + String(edge)
+      );
     };
 
     it("should return true if the grid has both of the edge's faces", () => {
-      expectE(2, "e,1,0,3,0").to.equal(true);
-      expectE(2, "e,0,1,3,0").to.equal(false);
-      expectE(2, "e,3,0,3,0").to.equal(false);
+      expectE(2, [1, 0, 3, "0"]).to.equal(true);
+      expectE(2, [0, 1, 3, "0"]).to.equal(false);
+      expectE(2, [3, 0, 3, "0"]).to.equal(false);
 
-      expectE(2, "e,1,1,0,0").to.equal(true);
-      expectE("U", "e,1,1,0,0").to.equal(false);
-      expectE(2, "e,1,2,0,0").to.equal(false);
-      expectE("U", "e,1,2,0,0").to.equal(false);
+      expectE(2, [1, 1, 0, "0"]).to.equal(true);
+      expectE("U", [1, 1, 0, "0"]).to.equal(false);
+      expectE(2, [1, 2, 0, "0"]).to.equal(false);
+      expectE("U", [1, 2, 0, "0"]).to.equal(false);
     });
   });
 
   describe("isEdgeOnBorder", () => {
     const expectE = function(gName, edge) {
-      return expect(gTable[gName].isEdgeOnBorder(edge), gName + " " + edge);
+      return expect(
+        gTable[gName].isEdgeOnBorder(edge),
+        gName + " " + String(edge)
+      );
     };
 
     it("should return true if the grid has one of the edge's faces", () => {
-      expectE(2, "e,1,0,3,0").to.equal(false);
-      expectE(2, "e,0,1,3,0").to.equal(true);
-      expectE(2, "e,3,0,3,0").to.equal(false);
+      expectE(2, [1, 0, 3, "0"]).to.equal(false);
+      expectE(2, [0, 1, 3, "0"]).to.equal(true);
+      expectE(2, [3, 0, 3, "0"]).to.equal(false);
 
-      expectE(2, "e,1,1,0,0").to.equal(false);
-      expectE("U", "e,1,1,0,0").to.equal(true);
-      expectE(2, "e,1,2,0,0").to.equal(true);
-      expectE("U", "e,1,2,0,0").to.equal(false);
+      expectE(2, [1, 1, 0, "0"]).to.equal(false);
+      expectE("U", [1, 1, 0, "0"]).to.equal(true);
+      expectE(2, [1, 2, 0, "0"]).to.equal(true);
+      expectE("U", [1, 2, 0, "0"]).to.equal(false);
     });
   });
 
   describe("isEdgeOutside", () => {
     const expectE = function(gName, edge) {
-      return expect(gTable[gName].isEdgeOutside(edge), gName + " " + edge);
+      return expect(
+        gTable[gName].isEdgeOutside(edge),
+        gName + " " + String(edge)
+      );
     };
 
     it("should return true if the grid has neither of the edge's faces", () => {
-      expectE(2, "e,1,0,3,0").to.equal(false);
-      expectE(2, "e,0,1,3,0").to.equal(false);
-      expectE(2, "e,3,0,3,0").to.equal(true);
+      expectE(2, [1, 0, 3, "0"]).to.equal(false);
+      expectE(2, [0, 1, 3, "0"]).to.equal(false);
+      expectE(2, [3, 0, 3, "0"]).to.equal(true);
 
-      expectE(2, "e,1,1,0,0").to.equal(false);
-      expectE("U", "e,1,1,0,0").to.equal(false);
-      expectE(2, "e,1,2,0,0").to.equal(false);
-      expectE("U", "e,1,2,0,0").to.equal(true);
+      expectE(2, [1, 1, 0, "0"]).to.equal(false);
+      expectE("U", [1, 1, 0, "0"]).to.equal(false);
+      expectE(2, [1, 2, 0, "0"]).to.equal(false);
+      expectE("U", [1, 2, 0, "0"]).to.equal(true);
     });
   });
 
   describe("getFaceCoordinates", () => {
     it("should apply origin and scale to the tesselation coordinates", () => {
-      expect(gTwo.getFaceCoordinates("f,0,0,0")).to.deep.equal([
+      expect(gTwo.getFaceCoordinates([0, 0, "0"])).to.deep.equal([
         [30, 10],
         [50, 10],
         [50, 30],
         [30, 30],
       ]);
-      expect(gUPentomino.getFaceCoordinates("f,4,2,0")).to.deep.equal([
+      expect(gUPentomino.getFaceCoordinates([4, 2, "0"])).to.deep.equal([
         [110, 50],
         [130, 50],
         [130, 70],
@@ -576,7 +599,7 @@ describe("Grid", () => {
     });
 
     it("should default to tesselation coordinates if no origin and scale are provided", () => {
-      expect(gTwoUnshifted.getFaceCoordinates("f,0,0,0")).to.deep.equal([
+      expect(gTwoUnshifted.getFaceCoordinates([0, 0, "0"])).to.deep.equal([
         [0, 0],
         [1, 0],
         [1, 1],
@@ -587,18 +610,18 @@ describe("Grid", () => {
 
   describe("getEdgeCoordinates", () => {
     it("should apply origin and scale to the tesselation coordinates", () => {
-      expect(gTwo.getEdgeCoordinates("e,0,0,0,0")).to.deep.equal([
+      expect(gTwo.getEdgeCoordinates([0, 0, 0, "0"])).to.deep.equal([
         [30, 10],
         [50, 10],
       ]);
-      expect(gTwo.getEdgeCoordinates("e,4,2,3,0")).to.deep.equal([
+      expect(gTwo.getEdgeCoordinates([4, 2, 3, "0"])).to.deep.equal([
         [110, 70],
         [110, 50],
       ]);
     });
 
     it("should default to tesselation coordinates if no origin and scale are provided", () => {
-      expect(gTwoUnshifted.getEdgeCoordinates("e,0,0,0,0")).to.deep.equal([
+      expect(gTwoUnshifted.getEdgeCoordinates([0, 0, 0, "0"])).to.deep.equal([
         [0, 0],
         [1, 0],
       ]);
@@ -607,15 +630,18 @@ describe("Grid", () => {
 
   describe("getVertexCoordinates", () => {
     it("should apply origin and scale to the tesselation coordinates", () => {
-      expect(gTwo.getVertexCoordinates("v,0,0,0")).to.deep.equal([30, 10]);
-      expect(gUPentomino.getVertexCoordinates("v,4,2,0")).to.deep.equal([
+      expect(gTwo.getVertexCoordinates([0, 0, "0"])).to.deep.equal([30, 10]);
+      expect(gUPentomino.getVertexCoordinates([4, 2, "0"])).to.deep.equal([
         110,
         50,
       ]);
     });
 
     it("should default to tesselation coordinates if no origin and scale are provided", () => {
-      expect(gTwoUnshifted.getVertexCoordinates("v,0,2,0")).to.deep.equal([0, 2]);
+      expect(gTwoUnshifted.getVertexCoordinates([0, 2, "0"])).to.deep.equal([
+        0,
+        2,
+      ]);
     });
   });
 

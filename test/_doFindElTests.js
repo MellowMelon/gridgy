@@ -42,13 +42,13 @@ export default function doFindElTests<F, E, V>(
         (name: string, p: Point) => {
           const elFinder = getElFinder(name);
           const face = elFinder.findFaceAt(p);
-          expect(face).to.be.ok;
+          expect(face, "exists").to.be.ok;
           // if check because flow doesn't know we'd have thrown
           if (!face) {
             return;
           }
           const polygon = elFinder.getFaceCoordinates(face);
-          expect(isPointInPolygon(p, polygon)).to.equal(true);
+          expect(isPointInPolygon(p, polygon), "in face").to.equal(true);
         }
       )
     );
@@ -76,7 +76,7 @@ export default function doFindElTests<F, E, V>(
         (name: string, p: Point) => {
           const elFinder = getElFinder(name);
           const bestEdge = elFinder.findEdgeAt(p);
-          expect(bestEdge).to.be.ok;
+          expect(bestEdge, "exists").to.be.ok;
           // if check because flow doesn't know we'd have thrown
           if (!bestEdge) {
             return;
@@ -123,7 +123,7 @@ export default function doFindElTests<F, E, V>(
         (name: string, p: Point) => {
           const elFinder = getElFinder(name);
           const bestVertex = elFinder.findVertexAt(p);
-          expect(bestVertex).to.be.ok;
+          expect(bestVertex, "exists").to.be.ok;
           // if check because flow doesn't know we'd have thrown
           if (!bestVertex) {
             return;

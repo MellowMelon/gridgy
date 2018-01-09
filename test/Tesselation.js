@@ -11,14 +11,14 @@ describe("Tesselation", () => {
   // Some of the below do not use regular shapes and instead approximate to
   // integer coordinates.
 
-  const tSquareArgs = {
+  const tSquareProps = {
     periodMatrix: [1, 0, 0, 1],
     faceVerticesTable: {
       "0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]],
     },
     vertexCoordinatesTable: {"0": [0, 0]},
   };
-  const tSquare = new Tesselation(tSquareArgs);
+  const tSquare = new Tesselation(tSquareProps);
 
   const tHex = new Tesselation({
     periodMatrix: [4, 0, 2, 3],
@@ -177,6 +177,16 @@ describe("Tesselation", () => {
         Error,
         "must be [number, number]; check vertex 3"
       );
+    });
+  });
+
+  describe("getProps", () => {
+    it("should return the format taken by the constructor argument", () => {
+      expect(tSquare.getProps()).to.deep.equal(tSquareProps);
+    });
+
+    it("should not return the same object passed to the constructor", () => {
+      expect(tSquare.getProps()).to.not.equal(tSquareProps);
     });
   });
 
@@ -605,7 +615,7 @@ describe("Tesselation", () => {
     });
 
     it("should not throw if used before any other incidence method", () => {
-      const tSquare2 = new Tesselation(tSquareArgs);
+      const tSquare2 = new Tesselation(tSquareProps);
       expect(tSquare2.getCanonicalEdge([0, 0, 0, "0"])).to.deep.equal([
         0,
         0,

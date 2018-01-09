@@ -179,20 +179,19 @@ function computeElementsAroundVertex(
 }
 
 function reducePointWithShift(
-  point: Point,
-  shift: Point,
+  [px, py]: Point,
+  [dx, dy]: Point,
   periodMatrix: Matrix2
 ): [Point, Point] {
-  const shiftedPoint = [point[0] - shift[0], point[1] - shift[1]];
-  // rsPoint means reduced and shifted point
-  const [periodCoords, rsPoint] = reducePoint(shiftedPoint, periodMatrix);
-  const reducedPoint = [rsPoint[0] + shift[0], rsPoint[1] + shift[1]];
-  return [periodCoords, reducedPoint];
+  const [periodCoords, [rx, ry]] = reducePoint([px - dx, py - dy], periodMatrix);
+  return [periodCoords, [rx + dx, ry + dy]];
 }
 
 export default class Tesselation {
-  props: TesselationProps;
   faceIDs: Array<FID>;
+  faceVerticesTable: {[FID]: Array<VKey>};
+  vertexCoordinatesTable: {[VID]: Point};
+  periodMatrix: Matrix2;
   _edgeTable: EdgeTable;
   _incidenceCache: IncidenceCache;
   _baseRect: Rect;
@@ -270,7 +269,17 @@ export default class Tesselation {
     });
 
     this.faceIDs = Object.keys(props.faceVerticesTable);
-    this.props = props;
+    this.faceVerticesTable = props.faceVerticesTable;
+    this.vertexCoordinatesTable = props.vertexCoordinatesTable;
+    this.periodMatrix = props.periodMatrix;
+  }
+
+  getProps(): TesselationProps {
+    return {
+      faceVerticesTable: this.faceVerticesTable,
+      vertexCoordinatesTable: this.vertexCoordinatesTable,
+      periodMatrix: this.periodMatrix,
+    };
   }
 
   _getIncidenceCache(): IncidenceCache {
@@ -290,7 +299,7 @@ export default class Tesselation {
 
     // First, do simple iteration over faces and their vertices.
     this.faceIDs.forEach(fid => {
-      const vs = this.props.faceVerticesTable[fid];
+      const vs = this.faceVerticesTable[fid];
 
       // vOnF is finished with this.
       cache.vOnF[fid] = vs;
@@ -479,8 +488,8 @@ export default class Tesselation {
 
   getVertexCoordinates(vertex: VKey): Point {
     const [vx, vy, vid] = vertex;
-    const [vidX, vidY] = this.props.vertexCoordinatesTable[vid];
-    const [a, b, c, d] = this.props.periodMatrix;
+    const [vidX, vidY] = this.vertexCoordinatesTable[vid];
+    const [a, b, c, d] = this.periodMatrix;
     return [vx * a + vy * c + vidX, vx * b + vy * d + vidY];
   }
 
@@ -500,8 +509,8 @@ export default class Tesselation {
       return [this._baseRect, this._faceCover];
     }
 
-    const periodMatrix = this.props.periodMatrix;
-    const baseRectSize = getBaseRectSize(this.props.periodMatrix);
+    const periodMatrix = this.periodMatrix;
+    const baseRectSize = getBaseRectSize(periodMatrix);
     // findFaceCover requires that a face in the 0,0 period intersects the base
     // rectangle, so we position the base rectangle to be centered at the first
     // vertex of the first face in 0,0.
@@ -587,14 +596,13 @@ export default class Tesselation {
     point: Point,
     atlas: PolygonAtlas<T>
   ): Array<T> {
-    const {periodMatrix} = this.props;
     const firstFID = this.faceIDs[0];
     const baseRect = this._computeFaceCover()[0];
 
     const [[px, py], reducedPoint] = reducePointWithShift(
       point,
       [baseRect[0], baseRect[1]],
-      periodMatrix
+      this.periodMatrix
     );
 
     let candEls: Array<T> = atlas.findPolygons(reducedPoint).map(r => r[1]);

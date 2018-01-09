@@ -4,19 +4,19 @@ import {describe, it} from "mocha";
 import {expect} from "chai";
 import {gen} from "mocha-testcheck";
 
+import type {GridProps} from "../src/Grid.js";
 import Tesselation from "../src/Tesselation.js";
 import Grid from "../src/Grid.js";
 import doFindElTests from "./_doFindElTests.js";
 
 describe("Grid", () => {
-  const tSquareArgs = {
+  const tSquare = new Tesselation({
     periodMatrix: [1, 0, 0, 1],
     faceVerticesTable: {
       "0": [[0, 0, "0"], [1, 0, "0"], [1, 1, "0"], [0, 1, "0"]],
     },
     vertexCoordinatesTable: {"0": [0, 0]},
-  };
-  const tSquare = new Tesselation(tSquareArgs);
+  });
 
   const coordArgs = {
     origin: [30, 10],
@@ -43,6 +43,7 @@ describe("Grid", () => {
       const parts = k.split(",");
       return [parseInt(parts[1]), parseInt(parts[2]), "0"];
     },
+    elToString: (key, elType) => elType + String(key),
   };
 
   const facesTwo = [[0, 0, "0"], [1, 0, "0"], [0, 1, "0"], [1, 1, "0"]];
@@ -52,12 +53,13 @@ describe("Grid", () => {
     ...coordArgs,
   });
 
-  const gTwoCustomNames = new Grid({
+  const gTwoCustomNamesProps: GridProps<string, string, string> = {
     tesselation: tSquare,
     faceList: ["F,0,0", "F,1,0", "F,0,1", "F,1,1"],
     ...coordArgs,
     ...customNameArgs,
-  });
+  };
+  const gTwoCustomNames = new Grid(gTwoCustomNamesProps);
 
   const gTwoUnshifted = new Grid({
     tesselation: tSquare,
@@ -96,6 +98,7 @@ describe("Grid", () => {
 
   const gTable = {
     "2": gTwo,
+    "2name": gTwoCustomNames,
     "3": gThree,
     U: gUPentomino,
   };
@@ -129,6 +132,50 @@ describe("Grid", () => {
         Error,
         "must pass faceList"
       );
+    });
+
+    it("should error when elToString does not return unique strings", () => {
+      const props = {
+        tesselation: tSquare,
+        faceList: [{a: 1}, {b: 2}, {c: 3}],
+      };
+      expect(construct(props)).to.throw(
+        Error,
+        "elToString returns [object Object] for both"
+      );
+    });
+  });
+
+  describe("getProps", () => {
+    it("should return the format taken by the constructor argument", () => {
+      // gTwoCustomNames is the only one above that doesn't use defaults
+      expect(gTwoCustomNames.getProps()).to.deep.equal(gTwoCustomNamesProps);
+    });
+
+    it("should not return the same object passed to the constructor", () => {
+      expect(gTwoCustomNames.getProps()).to.not.equal(gTwoCustomNamesProps);
+    });
+
+    it("should return an object with defaults filled in", () => {
+      // gTwoUnshifted was passed no optional props
+      const props = gTwoUnshifted.getProps();
+
+      // Proxy test to verify a function is the identity
+      const expectIdentity = function(f: any, message) {
+        expect(f(1), message + "(1)").to.equal(1);
+        const obj = {a: 1, b: 2};
+        expect(f(obj), message + "(obj)").to.equal(obj);
+      };
+
+      expect(props.origin, "origin").to.deep.equal([0, 0]);
+      expect(props.scale, "scale").to.equal(1);
+      expectIdentity(props.fromFaceTessKey, "fromFaceTessKey");
+      expectIdentity(props.fromEdgeTessKey, "fromEdgeTessKey");
+      expectIdentity(props.fromVertexTessKey, "fromVertexTessKey");
+      expectIdentity(props.toFaceTessKey, "toFaceTessKey");
+      expectIdentity(props.toEdgeTessKey, "toEdgeTessKey");
+      expectIdentity(props.toVertexTessKey, "toVertexTessKey");
+      expect(props.elToString, "elToString").to.equal(String);
     });
   });
 
@@ -221,7 +268,9 @@ describe("Grid", () => {
   });
 
   describe("hasFace", () => {
-    const expectHasF = function(gName, face) {
+    // Flow gets really confused about this function taking multiple grid key
+    // formats, so overriding with any.
+    const expectHasF = function(gName, face: any) {
       return expect(gTable[gName].hasFace(face), gName + " " + String(face));
     };
 
@@ -231,10 +280,32 @@ describe("Grid", () => {
       expectHasF(2, [2, 0, "0"]).to.equal(false);
       expectHasF(2, "bad").to.equal(false);
     });
+
+    it("should work with customized naming and elToString", () => {
+      expectHasF("2name", "F,0,0").to.equal(true);
+      expectHasF("2name", "F,2,2").to.equal(false);
+      expectHasF("2name", "F,3,3").to.equal(false);
+    });
+  });
+
+  describe("getCanonicalEdge", () => {
+    const expectCEToMatchTess = (gName, edge) => {
+      const grid = gTable[gName];
+      return expect(grid.getCanonicalEdge(edge), gName + " " + String(edge))
+      .to.deep.equal(grid.tesselation.getCanonicalEdge(edge));
+    };
+
+    it("should return the same as getCanonicalEdge of the tesselation", () => {
+      expectCEToMatchTess(2, [0, 0, 0, "0"]);
+      expectCEToMatchTess(2, [0, 1, 2, "0"]);
+      expectCEToMatchTess(2, [3, 2, 1, "0"]);
+    });
   });
 
   describe("hasEdge", () => {
-    const expectHasE = function(gName, edge) {
+    // Flow gets really confused about this function taking multiple grid key
+    // formats, so overriding with any.
+    const expectHasE = function(gName, edge: any) {
       return expect(gTable[gName].hasEdge(edge), gName + " " + String(edge));
     };
 
@@ -245,10 +316,24 @@ describe("Grid", () => {
       expectHasE(2, [0, 0, "0"]).to.equal(false);
       expectHasE(2, "bad").to.equal(false);
     });
+
+    it("should accept edges that are not in the tesselation's canonical form", () => {
+      expectHasE(2, [0, 0, 2, "0"]).to.equal(true);
+      expectHasE(2, [1, 0, 1, "0"]).to.equal(true);
+      expectHasE(2, [1, 2, 2, "0"]).to.equal(false);
+    });
+
+    it("should work with customized naming and elToString", () => {
+      expectHasE("2name", "E,0,0,v").to.equal(true);
+      expectHasE("2name", "E,1,2,h").to.equal(true);
+      expectHasE("2name", "E,3,3,h").to.equal(false);
+    });
   });
 
   describe("hasVertex", () => {
-    const expectHasV = function(gName, vertex) {
+    // Flow gets really confused about this function taking multiple grid key
+    // formats, so overriding with any.
+    const expectHasV = function(gName, vertex: any) {
       return expect(
         gTable[gName].hasVertex(vertex),
         gName + " " + String(vertex)
@@ -260,6 +345,12 @@ describe("Grid", () => {
       expectHasV(2, [2, 2, "0"]).to.equal(true);
       expectHasV(2, [3, 0, "0"]).to.equal(false);
       expectHasV(2, "bad").to.equal(false);
+    });
+
+    it("should work with customized naming and elToString", () => {
+      expectHasV("2name", "V,0,0").to.equal(true);
+      expectHasV("2name", "V,2,2").to.equal(true);
+      expectHasV("2name", "V,3,3").to.equal(false);
     });
   });
 

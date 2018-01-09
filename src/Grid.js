@@ -15,7 +15,7 @@ type ElToStringFunc<FKey, EKey, VKey> = (
   "f" | "e" | "v"
 ) => string;
 
-type GridProps<FKey, EKey, VKey> = {
+export type GridProps<FKey, EKey, VKey> = {
   tesselation: Tesselation,
   faceList: Array<FKey>,
   origin?: Point,
@@ -29,8 +29,61 @@ type GridProps<FKey, EKey, VKey> = {
   elToString?: ElToStringFunc<FKey, EKey, VKey>,
 };
 
+type GridPropsRet<FKey, EKey, VKey> = {
+  tesselation: Tesselation,
+  faceList: Array<FKey>,
+  origin: Point,
+  scale: number,
+  fromFaceTessKey: FTess => FKey,
+  fromEdgeTessKey: ETess => EKey,
+  fromVertexTessKey: VTess => VKey,
+  toFaceTessKey: FKey => FTess,
+  toEdgeTessKey: EKey => ETess,
+  toVertexTessKey: VKey => VTess,
+  elToString: ElToStringFunc<FKey, EKey, VKey>,
+};
+
 function withDefault<T>(value: ?T, defaultValue: T): T {
   return value == null ? defaultValue : value;
+}
+
+// Throws if it finds an issue. Not an exhaustive check by intention.
+function checkForStringDuplicates<FKey, EKey, VKey>(
+  elToString: ElToStringFunc<FKey, EKey, VKey>,
+  grid: Grid<FKey, EKey, VKey>
+) {
+  const faces = grid.faceList.slice(0, 10);
+  const faceTable = {};
+  faces.forEach(f => {
+    const fStr = elToString(f, "f");
+    if (faceTable[fStr]) {
+      throw new Error(`new Grid: elToString returns ${fStr} ` +
+        `for both ${JSON.stringify(faceTable[fStr])} and ${JSON.stringify(f)}`);
+    }
+    faceTable[fStr] = f;
+  });
+
+  const edges = grid.getEdgesOnFace(faces[0]);
+  const edgeTable = {};
+  edges.forEach(e => {
+    const eStr = elToString(e, "e");
+    if (faceTable[eStr]) {
+      throw new Error(`new Grid: elToString returns ${eStr} ` +
+        `for both ${JSON.stringify(edgeTable[eStr])} and ${JSON.stringify(e)}`);
+    }
+    faceTable[eStr] = e;
+  });
+
+  const vertices = grid.getVerticesOnFace(faces[0]);
+  const vertexTable = {};
+  vertices.forEach(v => {
+    const vStr = elToString(v, "v");
+    if (vertexTable[vStr]) {
+      throw new Error(`new Grid: elToString returns ${vStr} ` +
+        `for both ${JSON.stringify(faceTable[vStr])} and ${JSON.stringify(v)}`);
+    }
+    vertexTable[vStr] = v;
+  });
 }
 
 export default class Grid<FKey, EKey, VKey> {
@@ -74,9 +127,10 @@ export default class Grid<FKey, EKey, VKey> {
     this.toVertexTessKey = withDefault(props.toVertexTessKey, id);
 
     this.elToString = withDefault(props.elToString, String);
+    checkForStringDuplicates(this.elToString, this);
   }
 
-  getProps(): GridProps<FKey, EKey, VKey> {
+  getProps(): GridPropsRet<FKey, EKey, VKey> {
     return {
       tesselation: this.tesselation,
       faceList: this.faceList,
@@ -88,6 +142,7 @@ export default class Grid<FKey, EKey, VKey> {
       toFaceTessKey: this.toFaceTessKey,
       toEdgeTessKey: this.toEdgeTessKey,
       toVertexTessKey: this.toVertexTessKey,
+      elToString: this.elToString,
     };
   }
 
@@ -165,9 +220,26 @@ export default class Grid<FKey, EKey, VKey> {
     return this._faceSet.has(this.elToString(face, "f"));
   }
 
+  getCanonicalEdge(edge: EKey): EKey {
+    let canonicalEdge = this.toEdgeTessKey(edge);
+    canonicalEdge = this.tesselation.getCanonicalEdge(canonicalEdge);
+    return this.fromEdgeTessKey(canonicalEdge);
+  }
+
   hasEdge(edge: EKey): boolean {
     this._computeEdgeListAndSet();
-    return this._edgeSet.has(this.elToString(edge, "e"));
+    let has = this._edgeSet.has(this.elToString(edge, "e"));
+    if (!has) {
+      // This might throw if the edge is in a completely wrong format, and
+      // the hasX methods need to be forgiving about that.
+      try {
+        const canonicalEdge = this.getCanonicalEdge(edge);
+        has = this._edgeSet.has(this.elToString(canonicalEdge, "e"));
+      } catch (ex) {
+        has = false;
+      }
+    }
+    return has;
   }
 
   hasVertex(vertex: VKey): boolean {

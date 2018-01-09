@@ -105,7 +105,7 @@ describe("findFaceCover", () => {
   it("should deal with tesselations that aren't complete", () => {
     const ret = findFaceCover(
       [-1, -1, 22, 12],
-      [20, 0, 20, 20],
+      [20, 20, 0, 20],
       ["0"],
       () => [[0, 0], [10, 0], [10, 10], [0, 10]],
       () => []

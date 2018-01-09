@@ -45,10 +45,10 @@ describe("reducePoint", () => {
       expect(t, "x-coord in R").to.be.within(0, w);
       expect(u, "y-coord in R").to.be.within(0, h);
       expect(roundSanely(x), "x identity").to.equal(
-        roundSanely(t + r * a + s * b)
+        roundSanely(t + r * a + s * c)
       );
       expect(roundSanely(y), "y identity").to.equal(
-        roundSanely(u + r * c + s * d)
+        roundSanely(u + r * b + s * d)
       );
     })
   );

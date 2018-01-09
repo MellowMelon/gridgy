@@ -11,7 +11,7 @@ function invertMatrix2([a, b, c, d]: Matrix2): Matrix2 {
 }
 
 function multMV2([a, b, c, d]: Matrix2, [x, y]: Point): Point {
-  return [x * a + y * b, x * c + y * d];
+  return [x * a + y * c, x * b + y * d];
 }
 
 function diffVV2([x1, y1]: Point, [x2, y2]: Point): Point {
@@ -34,7 +34,7 @@ function diffVV2([x1, y1]: Point, [x2, y2]: Point): Point {
 // function.
 
 export function getBaseRectSize([a, b, c, d]: Matrix2): Point {
-  return [Math.abs(a) + Math.abs(b), Math.abs(c) + Math.abs(d)];
+  return [Math.abs(a) + Math.abs(c), Math.abs(b) + Math.abs(d)];
 }
 
 // The second function decomposes a point into one inside R and an integer
@@ -47,8 +47,8 @@ export function getBaseRectSize([a, b, c, d]: Matrix2): Point {
 // then we have:
 // -- r and s are integers,
 // -- 0 <= t <= w, 0 <= u <= h for [w, h] the return of the above function,
-// -- x = t + r * a + s * b,
-// -- y = u + r * c + s * d.
+// -- x = t + r * a + s * c,
+// -- y = u + r * b + s * d.
 
 export function reducePoint(p: Point, periodM: Matrix2): [Point, Point] {
   const [w, h] = getBaseRectSize(periodM);
@@ -61,8 +61,8 @@ export function reducePoint(p: Point, periodM: Matrix2): [Point, Point] {
   return [
     [r, s],
     [
-      p[0] - r * periodM[0] - s * periodM[1],
-      p[1] - r * periodM[2] - s * periodM[3],
+      p[0] - r * periodM[0] - s * periodM[2],
+      p[1] - r * periodM[1] - s * periodM[3],
     ],
   ];
 }

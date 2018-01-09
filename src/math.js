@@ -3,6 +3,9 @@
 export type Point = [number, number];
 export type Rect = [number, number, number, number];
 export type Matrix2 = [number, number, number, number];
+// The matrix format [a, b, c, d] corresponds to
+// [ a c ]
+// [ b d ]
 
 export function isPointInRect(p: Point, r2: Rect): boolean {
   return (

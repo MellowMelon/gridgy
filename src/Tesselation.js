@@ -481,7 +481,7 @@ export default class Tesselation {
     const [vx, vy, vid] = vertex;
     const [vidX, vidY] = this.props.vertexCoordinatesTable[vid];
     const [a, b, c, d] = this.props.periodMatrix;
-    return [vx * a + vy * b + vidX, vx * c + vy * d + vidY];
+    return [vx * a + vy * c + vidX, vx * b + vy * d + vidY];
   }
 
   // Below are the methods that figure out which element is closest to a given

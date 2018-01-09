@@ -21,7 +21,7 @@ describe("Tesselation", () => {
   const tSquare = new Tesselation(tSquareArgs);
 
   const tHex = new Tesselation({
-    periodMatrix: [4, 2, 0, 3],
+    periodMatrix: [4, 0, 2, 3],
     faceVerticesTable: {
       "0": [
         [0, 0, "0"],
@@ -36,7 +36,7 @@ describe("Tesselation", () => {
   });
 
   const tTri = new Tesselation({
-    periodMatrix: [2, 1, 0, 2],
+    periodMatrix: [2, 0, 1, 2],
     faceVerticesTable: {
       "0": [[0, 0, "0"], [1, 0, "0"], [0, 1, "0"]],
       "1": [[1, 0, "0"], [1, 1, "0"], [0, 1, "0"]],
@@ -45,7 +45,7 @@ describe("Tesselation", () => {
   });
 
   const tOctagon = new Tesselation({
-    periodMatrix: [4, 2, 0, 2],
+    periodMatrix: [4, 0, 2, 2],
     faceVerticesTable: {
       "0": [
         [0, 0, "0"],

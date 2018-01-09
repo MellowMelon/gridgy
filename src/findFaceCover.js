@@ -73,8 +73,8 @@ export default function findFaceCover(
 
 function moveRect(r, [a, b, c, d], periodX, periodY) {
   return [
-    r[0] + a * periodX + b * periodY,
-    r[1] + c * periodX + d * periodY,
+    r[0] + a * periodX + c * periodY,
+    r[1] + b * periodX + d * periodY,
     r[2],
     r[3],
   ];

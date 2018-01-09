@@ -183,8 +183,13 @@ function reducePointWithShift(
   [dx, dy]: Point,
   periodMatrix: Matrix2
 ): [Point, Point] {
-  const [periodCoords, [rx, ry]] = reducePoint([px - dx, py - dy], periodMatrix);
-  return [periodCoords, [rx + dx, ry + dy]];
+  const [periodCoords, [rx, ry]] = reducePoint(
+    [px - dx, py - dy],
+    periodMatrix
+  );
+  const tx = -px + rx + dx;
+  const ty = -py + ry + dy;
+  return [periodCoords, [px + tx, py + ty]];
 }
 
 export default class Tesselation {

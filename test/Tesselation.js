@@ -1148,6 +1148,12 @@ describe("Tesselation", () => {
       expectFaceAt("squareStripe", [1.5, 0.5]).to.equal(null);
       expectFaceAt("squareStripe", [11.1, 123.4]).to.equal(null);
     });
+
+    // This is a float rounding error test. The reducePointWithShift can return
+    // subtly different points if care is not taken.
+    it("should return a face that isPointInPolygon prefers when near the boundary", () => {
+      expectFaceAt("skewedSquare", [1.8e-8, 9e-9]).to.deep.equal([0, -1, "0"]);
+    });
   });
 
   describe("findEdgeAt", () => {

@@ -291,8 +291,10 @@ describe("Grid", () => {
   describe("getCanonicalEdge", () => {
     const expectCEToMatchTess = (gName, edge) => {
       const grid = gTable[gName];
-      return expect(grid.getCanonicalEdge(edge), gName + " " + String(edge))
-      .to.deep.equal(grid.tesselation.getCanonicalEdge(edge));
+      return expect(
+        grid.getCanonicalEdge(edge),
+        gName + " " + String(edge)
+      ).to.deep.equal(grid.tesselation.getCanonicalEdge(edge));
     };
 
     it("should return the same as getCanonicalEdge of the tesselation", () => {

@@ -23,6 +23,10 @@ type ElFinder<F, E, V> = {
   findVertexAt: Point => ?V,
 };
 
+// The rounding in these tests is intentional. The functions do actually break
+// when numbers around 1e-17 are passed in, since they are not well-equipped
+// for rounding errors. This is a very hard thing to fix without a lot of
+// complexity, and it's unlikely to affect actual usage.
 const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
 const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
 const genPoint = gen.array([genCoord, genCoord]);

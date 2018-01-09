@@ -57,8 +57,10 @@ function checkForStringDuplicates<FKey, EKey, VKey>(
   faces.forEach(f => {
     const fStr = elToString(f, "f");
     if (faceTable[fStr]) {
-      throw new Error(`new Grid: elToString returns ${fStr} ` +
-        `for both ${JSON.stringify(faceTable[fStr])} and ${JSON.stringify(f)}`);
+      throw new Error(
+        `new Grid: elToString returns ${fStr} ` +
+          `for both ${JSON.stringify(faceTable[fStr])} and ${JSON.stringify(f)}`
+      );
     }
     faceTable[fStr] = f;
   });
@@ -68,8 +70,10 @@ function checkForStringDuplicates<FKey, EKey, VKey>(
   edges.forEach(e => {
     const eStr = elToString(e, "e");
     if (faceTable[eStr]) {
-      throw new Error(`new Grid: elToString returns ${eStr} ` +
-        `for both ${JSON.stringify(edgeTable[eStr])} and ${JSON.stringify(e)}`);
+      throw new Error(
+        `new Grid: elToString returns ${eStr} ` +
+          `for both ${JSON.stringify(edgeTable[eStr])} and ${JSON.stringify(e)}`
+      );
     }
     faceTable[eStr] = e;
   });
@@ -79,8 +83,10 @@ function checkForStringDuplicates<FKey, EKey, VKey>(
   vertices.forEach(v => {
     const vStr = elToString(v, "v");
     if (vertexTable[vStr]) {
-      throw new Error(`new Grid: elToString returns ${vStr} ` +
-        `for both ${JSON.stringify(faceTable[vStr])} and ${JSON.stringify(v)}`);
+      throw new Error(
+        `new Grid: elToString returns ${vStr} ` +
+          `for both ${JSON.stringify(faceTable[vStr])} and ${JSON.stringify(v)}`
+      );
     }
     vertexTable[vStr] = v;
   });
@@ -152,9 +158,7 @@ export default class Grid<FKey, EKey, VKey> {
       return;
     }
     this._faceSet = new Set();
-    this.faceList.forEach(f =>
-      this._faceSet.add(this.elToString(f, "f"))
-    );
+    this.faceList.forEach(f => this._faceSet.add(this.elToString(f, "f")));
   }
 
   // Sets _edgeList and _edgeSet variables if not set already.

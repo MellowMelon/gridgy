@@ -47,14 +47,13 @@ function withDefault<T>(value: ?T, defaultValue: T): T {
   return value == null ? defaultValue : value;
 }
 
-// Throws if it finds an issue. Not an exhaustive check by intention.
+// Throws if it finds an issue. Quick and dirty by intention.
 function checkForStringDuplicates<FKey, EKey, VKey>(
   elToString: ElToStringFunc<FKey, EKey, VKey>,
   grid: Grid<FKey, EKey, VKey>
 ) {
-  const faces = grid.faceList.slice(0, 10);
   const faceTable = {};
-  faces.forEach(f => {
+  grid.faceList.slice(0, 10).forEach(f => {
     const fStr = elToString(f, "f");
     if (faceTable[fStr]) {
       throw new Error(
@@ -63,32 +62,6 @@ function checkForStringDuplicates<FKey, EKey, VKey>(
       );
     }
     faceTable[fStr] = f;
-  });
-
-  const edges = grid.getEdgesOnFace(faces[0]);
-  const edgeTable = {};
-  edges.forEach(e => {
-    const eStr = elToString(e, "e");
-    if (faceTable[eStr]) {
-      throw new Error(
-        `new Grid: elToString returns ${eStr} ` +
-          `for both ${JSON.stringify(edgeTable[eStr])} and ${JSON.stringify(e)}`
-      );
-    }
-    faceTable[eStr] = e;
-  });
-
-  const vertices = grid.getVerticesOnFace(faces[0]);
-  const vertexTable = {};
-  vertices.forEach(v => {
-    const vStr = elToString(v, "v");
-    if (vertexTable[vStr]) {
-      throw new Error(
-        `new Grid: elToString returns ${vStr} ` +
-          `for both ${JSON.stringify(faceTable[vStr])} and ${JSON.stringify(v)}`
-      );
-    }
-    vertexTable[vStr] = v;
   });
 }
 

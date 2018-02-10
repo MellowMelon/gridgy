@@ -6,7 +6,7 @@ import {check, gen} from "mocha-testcheck";
 
 import {getBaseRectSize, reducePoint} from "../src/PlanePeriod.js";
 
-const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
+const roundSanely = x => Math.round(x * 10000000) / 10000000;
 
 const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
 const genPoint = gen.array([genCoord, genCoord]);

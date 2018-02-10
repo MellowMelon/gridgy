@@ -45,7 +45,7 @@
   },
   "scripts": {
     "build": "npm run build-dir && npm run build-dir-es && npm run build-flow && npm run build-bundle",
-    "build-dir": "BABEL_ENV=cjs babel src --out-dir lib",
+    "build-dir": "babel src --out-dir lib",
     "build-dir-es": "BABEL_ENV=es babel src --out-dir libes",
     "build-flow": "flow-copy-source src libes",
     "build-bundle": "rollup -c",

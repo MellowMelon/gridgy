@@ -27,7 +27,7 @@ type ElFinder<F, E, V> = {
 // when numbers around 1e-17 are passed in, since they are not well-equipped
 // for rounding errors. This is a very hard thing to fix without a lot of
 // complexity, and it's unlikely to affect actual usage.
-const roundSanely = x => Math.round(x * 1000000000) / 1000000000;
+const roundSanely = x => Math.round(x * 10000000) / 10000000;
 const genCoord = gen.numberWithin(-10000, 10000).then(roundSanely);
 const genPoint = gen.array([genCoord, genCoord]);
 

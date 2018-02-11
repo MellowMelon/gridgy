@@ -1,8 +1,9 @@
 // @flow
 
 import type {Point} from "./math.js";
+import type {QueryPolygonAtlas} from "./makePolygonAtlas.js";
 import {getBoundingBox} from "./math.js";
-import PolygonAtlas from "./PolygonAtlas.js";
+import makePolygonAtlas from "./makePolygonAtlas.js";
 import Voronoi from "voronoi";
 
 // The collection polygons computed by the voronoi diagram may have epsilon
@@ -12,7 +13,7 @@ const ENLARGE_AMOUNT = 1.000000001;
 
 export default function makeVoronoiAtlas<T>(
   pointData: Array<[Point, T]>
-): PolygonAtlas<T> {
+): QueryPolygonAtlas<T> {
   const pointList = pointData.map(p => p[0]);
   const pointIndexTable = new Map();
   pointList.forEach((p, i) => pointIndexTable.set(p.join(","), i));
@@ -31,13 +32,12 @@ export default function makeVoronoiAtlas<T>(
   const polygons = diagram.cells.map(c =>
     c.halfedges.map(e => convertPointToArray(e.getStartpoint()))
   );
-  const atlas = new PolygonAtlas(bbRect);
-  polygons.forEach((p, i) => {
+  const polygonData = polygons.map((p, i) => {
     const pointDataIndex = vSitePermutation[i];
     p = enlargePolygon(p, pointData[pointDataIndex][0], ENLARGE_AMOUNT);
-    atlas.addPolygon(p, pointData[pointDataIndex][1]);
+    return [p, pointData[pointDataIndex][1]];
   });
-  return atlas;
+  return makePolygonAtlas(bbRect, polygonData);
 }
 
 function enlargePolygon(

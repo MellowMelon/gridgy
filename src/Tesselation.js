@@ -2,11 +2,12 @@
 
 import type {Point, Rect, Matrix2} from "./math.js";
 import type {FID, VID, FKey, EKey, VKey, XKey} from "./Tesselation.types.js";
+import type {QueryPolygonAtlas} from "./makePolygonAtlas.js";
 
-import {forEachObj, mapValues, orderArrays, union} from "./utils.js";
+import {forEachObj, isObject, mapValues, orderArrays, union} from "./utils.js";
 import {getBaseRectSize, reducePoint} from "./PlanePeriod.js";
 import findFaceCover from "./findFaceCover.js";
-import PolygonAtlas from "./PolygonAtlas.js";
+import makePolygonAtlas from "./makePolygonAtlas.js";
 import makeVoronoiAtlas from "./makeVoronoiAtlas.js";
 
 type TesselationProps = {
@@ -178,6 +179,82 @@ function computeElementsAroundVertex(
   return ret;
 }
 
+function getIncidenceCache(tess: Tesselation): IncidenceCache {
+  if (tess._incidenceCache) {
+    return tess._incidenceCache;
+  }
+  const cache: IncidenceCache = {
+    eOnF: {},
+    vOnF: {},
+    fOnE: {},
+    vOnE: {},
+    fOnV: {},
+    eOnV: {},
+  };
+  // This would be the real fOnV except for ordering.
+  const prelimFOnV: {[VID]: Array<FKey>} = {};
+
+  // First, do simple iteration over faces and their vertices.
+  tess.faceIDs.forEach(fid => {
+    const vs = tess.faceVerticesTable[fid];
+
+    // vOnF is finished with this.
+    cache.vOnF[fid] = vs;
+    // eOnF is finished up to using canonical edge names.
+    cache.eOnF[fid] = vs.map((vk, i) => [0, 0, i, fid]);
+
+    cache.fOnE[fid] = [];
+    cache.vOnE[fid] = [];
+    vs.forEach((v, i) => {
+      prelimFOnV[v[2]] = prelimFOnV[v[2]] || [];
+      prelimFOnV[v[2]].push([-v[0], -v[1], fid]);
+      const nextI = (i + 1) % vs.length;
+      // fOnE is not yet using canonical edges; these will be collapsed later.
+      cache.fOnE[fid][i] = [[0, 0, fid]];
+      // vOnE is finished with this.
+      cache.vOnE[fid][i] = [v, vs[nextI]];
+    });
+  });
+
+  // Use vOnE to determine what the canonical edges are.
+  const edgeTable = makeEdgeTable(cache.vOnE);
+  // eOnF is finished with this.
+  cache.eOnF = mapValues(cache.eOnF, edges => remapEdges(edges, edgeTable));
+
+  // Finish fOnE next. This requires identifying which edges are the same and
+  // combining their two edge arrays with the appropriate shifting.
+  tess.faceIDs.forEach(fid => {
+    edgeTable[fid].forEach((edge, i) => {
+      const [ex, ey, ei, efid] = edge;
+      if (efid !== fid || ei !== i) {
+        const invEdge = [-ex, -ey, ei, efid];
+        const oldFOnE1 = cache.fOnE[fid][i];
+        const oldFOnE2 = cache.fOnE[efid][ei];
+        cache.fOnE[fid][i] = [...oldFOnE1, ...shiftEls(oldFOnE2, edge)];
+        cache.fOnE[efid][ei] = [...shiftEls(oldFOnE1, invEdge), ...oldFOnE2];
+      }
+    });
+  });
+
+  // fOnV and eOnV would be easy but for ordering. Use a helper to finish
+  // those two.
+  forEachObj(prelimFOnV, (preFaces, vid) => {
+    const {faces, edges} = computeElementsAroundVertex(
+      vid,
+      preFaces,
+      cache.eOnF,
+      cache.vOnF,
+      cache.fOnE
+    );
+    cache.fOnV[vid] = faces;
+    cache.eOnV[vid] = edges;
+  });
+
+  tess._edgeTable = edgeTable;
+  tess._incidenceCache = cache;
+  return cache;
+}
+
 function reducePointWithShift(
   [px, py]: Point,
   [dx, dy]: Point,
@@ -192,6 +269,121 @@ function reducePointWithShift(
   return [periodCoords, [px + tx, py + ty]];
 }
 
+// Below are the methods that figure out which element is closest to a given
+// point in the plane. The general strategy here is to choose a base
+// rectangle and move the provided point inside it using the period matrix.
+// This makes the problem finite, and we can precompute all elements that
+// intersect the base rectangle, figure out where the point is using them,
+// and then shift back to the real point/element using the period.
+
+// This helper function does the aforementioned precomputing for faces. It
+// returns a base rectangle and a list of faces that intersect it. This can
+// be used to build a map of which parts of the base rectangle correspond to
+// which element for each of faces, edges, and vertices.
+function computeFaceCover(tess: Tesselation): [Rect, Array<FKey>] {
+  if (tess._baseRect) {
+    return [tess._baseRect, tess._faceCover];
+  }
+
+  const periodMatrix = tess.periodMatrix;
+  const baseRectSize = getBaseRectSize(periodMatrix);
+  // findFaceCover requires that a face in the 0,0 period intersects the base
+  // rectangle, so we position the base rectangle to be centered at the first
+  // vertex of the first face in 0,0.
+  const firstFID = tess.faceIDs[0];
+  const firstFace = [0, 0, firstFID];
+  const firstVertex = tess.getVerticesOnFace(firstFace)[0];
+  const firstVCoords = tess.getVertexCoordinates(firstVertex);
+  const baseRect = [
+    firstVCoords[0] - baseRectSize[0] / 2,
+    firstVCoords[1] - baseRectSize[1] / 2,
+    baseRectSize[0],
+    baseRectSize[1],
+  ];
+
+  const faceCover = findFaceCover(
+    baseRect,
+    periodMatrix,
+    tess.faceIDs,
+    fid => tess.getFaceCoordinates([0, 0, fid]),
+    fid => tess.getTouchingFaces([0, 0, fid])
+  );
+
+  tess._baseRect = baseRect;
+  tess._faceCover = faceCover;
+  return [baseRect, faceCover];
+}
+
+// Returns a QueryPolygonAtlas that can determine which face contains a point for
+// any point in the base rectangle of computeFaceCover.
+function computeFaceAtlas(tess: Tesselation): QueryPolygonAtlas<FKey> {
+  if (tess._faceAtlas) {
+    return tess._faceAtlas;
+  }
+  const [baseRect, faceCover] = computeFaceCover(tess);
+  const faceDataForAtlas = faceCover.map(f => [tess.getFaceCoordinates(f), f]);
+  const faceAtlas = makePolygonAtlas(baseRect, faceDataForAtlas);
+  tess._faceAtlas = faceAtlas;
+  return faceAtlas;
+}
+
+// Returns a QueryPolygonAtlas that can determine the closest edge to a point for
+// any point in the base rectangle of computeFaceCover. The edge's midpoint
+// is used for computing distance.
+function computeEdgeAtlas(tess: Tesselation): QueryPolygonAtlas<EKey> {
+  if (tess._edgeAtlas) {
+    return tess._edgeAtlas;
+  }
+
+  const [, faceCover] = computeFaceCover(tess);
+  const edges = union(faceCover.map(k => tess.getEdgesOnFace(k)));
+  const edgesWithMidpoints = edges.map(k => {
+    const [[x1, y1], [x2, y2]] = tess.getEdgeCoordinates(k);
+    return [[(x1 + x2) / 2, (y1 + y2) / 2], k];
+  });
+  const edgeAtlas = makeVoronoiAtlas(edgesWithMidpoints);
+  tess._edgeAtlas = edgeAtlas;
+  return edgeAtlas;
+}
+
+// Returns a QueryPolygonAtlas that can determine the closest vertex to a point
+// for any point in the base rectangle of computeFaceCover.
+function computeVertexAtlas(tess: Tesselation): QueryPolygonAtlas<VKey> {
+  if (tess._vertexAtlas) {
+    return tess._vertexAtlas;
+  }
+
+  const [, faceCover] = computeFaceCover(tess);
+  const vertices = union(faceCover.map(k => tess.getVerticesOnFace(k)));
+  const verticesWithPoints = vertices.map(k => {
+    return [tess.getVertexCoordinates(k), k];
+  });
+  const vertexAtlas = makeVoronoiAtlas(verticesWithPoints);
+  tess._vertexAtlas = vertexAtlas;
+  return vertexAtlas;
+}
+
+// Tiny helper to handle changing an arbitrary point into one inside the base
+// rectangle, then using that to query an atlas using that rectangle.
+function getCandidatesFromAtlas<T: XKey>(
+  tess: Tesselation,
+  point: Point,
+  atlas: QueryPolygonAtlas<T>
+): Array<T> {
+  const firstFID = tess.faceIDs[0];
+  const baseRect = computeFaceCover(tess)[0];
+
+  const [[px, py], reducedPoint] = reducePointWithShift(
+    point,
+    [baseRect[0], baseRect[1]],
+    tess.periodMatrix
+  );
+
+  let candEls: Array<T> = atlas(reducedPoint).map(r => r[1]);
+  candEls = shiftEls(candEls, ([px, py, firstFID]: FKey));
+  return candEls;
+}
+
 export default class Tesselation {
   faceIDs: Array<FID>;
   faceVerticesTable: {[FID]: Array<VKey>};
@@ -201,77 +393,24 @@ export default class Tesselation {
   _incidenceCache: IncidenceCache;
   _baseRect: Rect;
   _faceCover: Array<FKey>;
-  _faceAtlas: PolygonAtlas<FKey>;
-  _edgeAtlas: PolygonAtlas<EKey>;
-  _vertexAtlas: PolygonAtlas<VKey>;
+  _faceAtlas: QueryPolygonAtlas<FKey>;
+  _edgeAtlas: QueryPolygonAtlas<EKey>;
+  _vertexAtlas: QueryPolygonAtlas<VKey>;
 
   constructor(props: TesselationProps) {
     if (!props) {
       throw new Error("new Tesselation: first parameter must be an object");
-    } else if (
-      !Array.isArray(props.periodMatrix) ||
-      props.periodMatrix.length !== 4 ||
-      props.periodMatrix.some(n => n !== Number(n))
-    ) {
-      throw new Error(
-        "new Tesselation: must pass array of 4 numbers for periodMatrix"
-      );
-    } else if (!props.faceVerticesTable) {
+    } else if (!Array.isArray(props.periodMatrix)) {
+      throw new Error("new Tesselation: must pass array for periodMatrix");
+    } else if (!isObject(props.faceVerticesTable)) {
       throw new Error(
         "new Tesselation: must pass an object for faceVerticesTable"
       );
-    } else if (!props.vertexCoordinatesTable) {
+    } else if (!isObject(props.vertexCoordinatesTable)) {
       throw new Error(
         "new Tesselation: must pass an object for vertexCoordinatesTable"
       );
     }
-    forEachObj(props.faceVerticesTable, (vArray, fid) => {
-      if (!Array.isArray(vArray)) {
-        throw new Error(
-          "new Tesselation: all values of faceVerticesTable must be arrays; check face " +
-            fid
-        );
-      }
-      vArray.forEach((v, i) => {
-        if (
-          !Array.isArray(v) ||
-          v.length !== 3 ||
-          Number(v[0]) !== v[0] ||
-          Number(v[1]) !== v[1]
-        ) {
-          throw new Error(
-            "new Tesselation: in faceVerticesTable, " +
-              "all vertices must be [number, number, vertexID]; " +
-              "check face " +
-              fid +
-              " #" +
-              (i + 1)
-          );
-        } else if (!props.vertexCoordinatesTable.hasOwnProperty(v[2])) {
-          throw new Error(
-            "new Tesselation: in faceVerticesTable, " +
-              "vertexID (third element) of each vertex must be in vertexCoordinatesTable; " +
-              "check face " +
-              fid +
-              " #" +
-              (i + 1)
-          );
-        }
-      });
-    });
-    forEachObj(props.vertexCoordinatesTable, (p, vid) => {
-      if (
-        !Array.isArray(p) ||
-        p.length !== 2 ||
-        Number(p[0]) !== p[0] ||
-        Number(p[1]) !== p[1]
-      ) {
-        throw new Error(
-          "new Tesselation: all values of vertexCoordinatesTable must be [number, number]; check vertex " +
-            vid
-        );
-      }
-    });
 
     this.faceIDs = Object.keys(props.faceVerticesTable);
     this.faceVerticesTable = props.faceVerticesTable;
@@ -287,85 +426,9 @@ export default class Tesselation {
     };
   }
 
-  _getIncidenceCache(): IncidenceCache {
-    if (this._incidenceCache) {
-      return this._incidenceCache;
-    }
-    const cache: IncidenceCache = {
-      eOnF: {},
-      vOnF: {},
-      fOnE: {},
-      vOnE: {},
-      fOnV: {},
-      eOnV: {},
-    };
-    // This would be the real fOnV except for ordering.
-    const prelimFOnV: {[VID]: Array<FKey>} = {};
-
-    // First, do simple iteration over faces and their vertices.
-    this.faceIDs.forEach(fid => {
-      const vs = this.faceVerticesTable[fid];
-
-      // vOnF is finished with this.
-      cache.vOnF[fid] = vs;
-      // eOnF is finished up to using canonical edge names.
-      cache.eOnF[fid] = vs.map((vk, i) => [0, 0, i, fid]);
-
-      cache.fOnE[fid] = [];
-      cache.vOnE[fid] = [];
-      vs.forEach((v, i) => {
-        prelimFOnV[v[2]] = prelimFOnV[v[2]] || [];
-        prelimFOnV[v[2]].push([-v[0], -v[1], fid]);
-        const nextI = (i + 1) % vs.length;
-        // fOnE is not yet using canonical edges; these will be collapsed later.
-        cache.fOnE[fid][i] = [[0, 0, fid]];
-        // vOnE is finished with this.
-        cache.vOnE[fid][i] = [v, vs[nextI]];
-      });
-    });
-
-    // Use vOnE to determine what the canonical edges are.
-    const edgeTable = makeEdgeTable(cache.vOnE);
-    // eOnF is finished with this.
-    cache.eOnF = mapValues(cache.eOnF, edges => remapEdges(edges, edgeTable));
-
-    // Finish fOnE next. This requires identifying which edges are the same and
-    // combining their two edge arrays with the appropriate shifting.
-    this.faceIDs.forEach(fid => {
-      edgeTable[fid].forEach((edge, i) => {
-        const [ex, ey, ei, efid] = edge;
-        if (efid !== fid || ei !== i) {
-          const invEdge = [-ex, -ey, ei, efid];
-          const oldFOnE1 = cache.fOnE[fid][i];
-          const oldFOnE2 = cache.fOnE[efid][ei];
-          cache.fOnE[fid][i] = [...oldFOnE1, ...shiftEls(oldFOnE2, edge)];
-          cache.fOnE[efid][ei] = [...shiftEls(oldFOnE1, invEdge), ...oldFOnE2];
-        }
-      });
-    });
-
-    // fOnV and eOnV would be easy but for ordering. Use a helper to finish
-    // those two.
-    forEachObj(prelimFOnV, (preFaces, vid) => {
-      const {faces, edges} = computeElementsAroundVertex(
-        vid,
-        preFaces,
-        cache.eOnF,
-        cache.vOnF,
-        cache.fOnE
-      );
-      cache.fOnV[vid] = faces;
-      cache.eOnV[vid] = edges;
-    });
-
-    this._edgeTable = edgeTable;
-    this._incidenceCache = cache;
-    return cache;
-  }
-
   getCanonicalEdge(edge: EKey) {
     // this._edgeTable needs to be populated first.
-    this._getIncidenceCache();
+    getIncidenceCache(this);
     return getMappedEdge(edge, this._edgeTable);
   }
 
@@ -374,7 +437,7 @@ export default class Tesselation {
   }
 
   getEdgesOnFace(face: FKey): Array<EKey> {
-    const base = this._getIncidenceCache().eOnF[face[2]];
+    const base = getIncidenceCache(this).eOnF[face[2]];
     if (!base) {
       throw new Error("Invalid face " + String(face));
     }
@@ -382,7 +445,7 @@ export default class Tesselation {
   }
 
   getVerticesOnFace(face: FKey): Array<VKey> {
-    const base = this._getIncidenceCache().vOnF[face[2]];
+    const base = getIncidenceCache(this).vOnF[face[2]];
     if (!base) {
       throw new Error("Invalid face " + String(face));
     }
@@ -390,7 +453,7 @@ export default class Tesselation {
   }
 
   getFacesOnEdge(edge: EKey): Array<FKey> {
-    let base = this._getIncidenceCache().fOnE[edge[3]];
+    let base = getIncidenceCache(this).fOnE[edge[3]];
     base = base && base[edge[2]];
     if (!base) {
       throw new Error("Invalid edge " + String(edge));
@@ -399,7 +462,7 @@ export default class Tesselation {
   }
 
   getVerticesOnEdge(edge: EKey): [VKey, VKey] {
-    let base = this._getIncidenceCache().vOnE[edge[3]];
+    let base = getIncidenceCache(this).vOnE[edge[3]];
     base = base && base[edge[2]];
     if (!base) {
       throw new Error("Invalid edge " + String(edge));
@@ -408,7 +471,7 @@ export default class Tesselation {
   }
 
   getFacesOnVertex(vertex: VKey): Array<FKey> {
-    const base = this._getIncidenceCache().fOnV[vertex[2]];
+    const base = getIncidenceCache(this).fOnV[vertex[2]];
     if (!base) {
       throw new Error("Invalid vertex " + String(vertex));
     }
@@ -416,7 +479,7 @@ export default class Tesselation {
   }
 
   getEdgesOnVertex(vertex: VKey): Array<EKey> {
-    const base = this._getIncidenceCache().eOnV[vertex[2]];
+    const base = getIncidenceCache(this).eOnV[vertex[2]];
     if (!base) {
       throw new Error("Invalid vertex " + String(vertex));
     }
@@ -498,138 +561,21 @@ export default class Tesselation {
     return [vx * a + vy * c + vidX, vx * b + vy * d + vidY];
   }
 
-  // Below are the methods that figure out which element is closest to a given
-  // point in the plane. The general strategy here is to choose a base
-  // rectangle and move the provided point inside it using the period matrix.
-  // This makes the problem finite, and we can precompute all elements that
-  // intersect the base rectangle, figure out where the point is using them,
-  // and then shift back to the real point/element using the period.
-
-  // This helper function does the aforementioned precomputing for faces. It
-  // returns a base rectangle and a list of faces that intersect it. This can
-  // be used to build a map of which parts of the base rectangle correspond to
-  // which element for each of faces, edges, and vertices.
-  _computeFaceCover(): [Rect, Array<FKey>] {
-    if (this._baseRect) {
-      return [this._baseRect, this._faceCover];
-    }
-
-    const periodMatrix = this.periodMatrix;
-    const baseRectSize = getBaseRectSize(periodMatrix);
-    // findFaceCover requires that a face in the 0,0 period intersects the base
-    // rectangle, so we position the base rectangle to be centered at the first
-    // vertex of the first face in 0,0.
-    const firstFID = this.faceIDs[0];
-    const firstFace = [0, 0, firstFID];
-    const firstVertex = this.getVerticesOnFace(firstFace)[0];
-    const firstVCoords = this.getVertexCoordinates(firstVertex);
-    const baseRect = [
-      firstVCoords[0] - baseRectSize[0] / 2,
-      firstVCoords[1] - baseRectSize[1] / 2,
-      baseRectSize[0],
-      baseRectSize[1],
-    ];
-
-    const faceCover = findFaceCover(
-      baseRect,
-      periodMatrix,
-      this.faceIDs,
-      fid => this.getFaceCoordinates([0, 0, fid]),
-      fid => this.getTouchingFaces([0, 0, fid])
-    );
-
-    this._baseRect = baseRect;
-    this._faceCover = faceCover;
-    return [baseRect, faceCover];
-  }
-
-  // Returns a PolygonAtlas that can determine which face contains a point for
-  // any point in the base rectangle of _computeFaceCover.
-  _computeFaceAtlas(): PolygonAtlas<FKey> {
-    if (this._faceAtlas) {
-      return this._faceAtlas;
-    }
-
-    const [baseRect, faceCover] = this._computeFaceCover();
-    const faceAtlas = new PolygonAtlas(baseRect);
-    faceCover.forEach(fKey => {
-      faceAtlas.addPolygon(this.getFaceCoordinates(fKey), fKey);
-    });
-    this._faceAtlas = faceAtlas;
-    return faceAtlas;
-  }
-
-  // Returns a PolygonAtlas that can determine the closest edge to a point for
-  // any point in the base rectangle of _computeFaceCover. The edge's midpoint
-  // is used for computing distance.
-  _computeEdgeAtlas(): PolygonAtlas<EKey> {
-    if (this._edgeAtlas) {
-      return this._edgeAtlas;
-    }
-
-    const [, faceCover] = this._computeFaceCover();
-    const edges = union(faceCover.map(k => this.getEdgesOnFace(k)));
-    const edgesWithMidpoints = edges.map(k => {
-      const [[x1, y1], [x2, y2]] = this.getEdgeCoordinates(k);
-      return [[(x1 + x2) / 2, (y1 + y2) / 2], k];
-    });
-    const edgeAtlas = makeVoronoiAtlas(edgesWithMidpoints);
-    this._edgeAtlas = edgeAtlas;
-    return edgeAtlas;
-  }
-
-  // Returns a PolygonAtlas that can determine the closest vertex to a point
-  // for any point in the base rectangle of _computeFaceCover.
-  _computeVertexAtlas(): PolygonAtlas<VKey> {
-    if (this._vertexAtlas) {
-      return this._vertexAtlas;
-    }
-
-    const [, faceCover] = this._computeFaceCover();
-    const vertices = union(faceCover.map(k => this.getVerticesOnFace(k)));
-    const verticesWithPoints = vertices.map(k => {
-      return [this.getVertexCoordinates(k), k];
-    });
-    const vertexAtlas = makeVoronoiAtlas(verticesWithPoints);
-    this._vertexAtlas = vertexAtlas;
-    return vertexAtlas;
-  }
-
-  // Tiny helper to handle changing an arbitrary point into one inside the base
-  // rectangle, then using that to query an atlas using that rectangle.
-  _getCandidatesFromAtlas<T: XKey>(
-    point: Point,
-    atlas: PolygonAtlas<T>
-  ): Array<T> {
-    const firstFID = this.faceIDs[0];
-    const baseRect = this._computeFaceCover()[0];
-
-    const [[px, py], reducedPoint] = reducePointWithShift(
-      point,
-      [baseRect[0], baseRect[1]],
-      this.periodMatrix
-    );
-
-    let candEls: Array<T> = atlas.findPolygons(reducedPoint).map(r => r[1]);
-    candEls = shiftEls(candEls, ([px, py, firstFID]: FKey));
-    return candEls;
-  }
-
   findFaceAt(point: Point): ?FKey {
-    const faceAtlas = this._computeFaceAtlas();
-    const cands = this._getCandidatesFromAtlas(point, faceAtlas);
+    const faceAtlas = computeFaceAtlas(this);
+    const cands = getCandidatesFromAtlas(this, point, faceAtlas);
     return cands[0] || null;
   }
 
   findEdgeAt(point: Point): ?EKey {
-    const edgeAtlas = this._computeEdgeAtlas();
-    const cands = this._getCandidatesFromAtlas(point, edgeAtlas);
+    const edgeAtlas = computeEdgeAtlas(this);
+    const cands = getCandidatesFromAtlas(this, point, edgeAtlas);
     return cands[0] || null;
   }
 
   findVertexAt(point: Point): ?VKey {
-    const vertexAtlas = this._computeVertexAtlas();
-    const cands = this._getCandidatesFromAtlas(point, vertexAtlas);
+    const vertexAtlas = computeVertexAtlas(this);
+    const cands = getCandidatesFromAtlas(this, point, vertexAtlas);
     return cands[0] || null;
   }
 }

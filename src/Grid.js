@@ -47,22 +47,73 @@ function withDefault<T>(value: ?T, defaultValue: T): T {
   return value == null ? defaultValue : value;
 }
 
-// Throws if it finds an issue. Quick and dirty by intention.
-function checkForStringDuplicates<FKey, EKey, VKey>(
-  elToString: ElToStringFunc<FKey, EKey, VKey>,
-  grid: Grid<FKey, EKey, VKey>
-) {
-  const faceTable = {};
-  grid.faceList.slice(0, 10).forEach(f => {
-    const fStr = elToString(f, "f");
-    if (faceTable[fStr]) {
-      throw new Error(
-        `new Grid: elToString returns ${fStr} ` +
-          `for both ${JSON.stringify(faceTable[fStr])} and ${JSON.stringify(f)}`
-      );
-    }
-    faceTable[fStr] = f;
+// Sets _faceSet variable if not set already.
+function computeFaceSet<FKey, EKey, VKey>(g: Grid<FKey, EKey, VKey>) {
+  if (g._faceSet) {
+    return;
+  }
+  g._faceSet = new Set();
+  g.faceList.forEach(f => g._faceSet.add(g.elToString(f, "f")));
+}
+
+// Sets _edgeList and _edgeSet variables if not set already.
+function computeEdgeListAndSet<FKey, EKey, VKey>(g: Grid<FKey, EKey, VKey>) {
+  if (g._edgeList && g._edgeSet) {
+    return;
+  }
+  const edgeList = [];
+  const edgeSet = new Set();
+  g.faceList.forEach(f => {
+    const tessF = g.toFaceTessKey(f);
+    g.tesselation.getEdgesOnFace(tessF).forEach(tessE => {
+      const e = g.fromEdgeTessKey(tessE);
+      const eStr = g.elToString(e, "e");
+      if (!edgeSet.has(eStr)) {
+        edgeList.push(e);
+        edgeSet.add(eStr);
+      }
+    });
   });
+  g._edgeList = edgeList;
+  g._edgeSet = edgeSet;
+}
+
+// Sets _vertexList and _vertexSet variables if not set already.
+function computeVertexListAndSet<FKey, EKey, VKey>(g: Grid<FKey, EKey, VKey>) {
+  if (g._vertexList && g._vertexSet) {
+    return;
+  }
+  const vertexList = [];
+  const vertexSet = new Set();
+  g.faceList.forEach(f => {
+    const tessF = g.toFaceTessKey(f);
+    g.tesselation.getVerticesOnFace(tessF).forEach(tessV => {
+      const v = g.fromVertexTessKey(tessV);
+      const vStr = g.elToString(v, "v");
+      if (!vertexSet.has(vStr)) {
+        vertexList.push(v);
+        vertexSet.add(vStr);
+      }
+    });
+  });
+  g._vertexList = vertexList;
+  g._vertexSet = vertexSet;
+}
+
+function fromTessCoordinates<FKey, EKey, VKey>(
+  g: Grid<FKey, EKey, VKey>,
+  [x, y]: Point
+): Point {
+  const [ox, oy] = g.origin;
+  return [g.scale * x + ox, g.scale * y + oy];
+}
+
+function toTessCoordinates<FKey, EKey, VKey>(
+  g: Grid<FKey, EKey, VKey>,
+  [x, y]: Point
+): Point {
+  const [ox, oy] = g.origin;
+  return [(x - ox) / g.scale, (y - oy) / g.scale];
 }
 
 export default class Grid<FKey, EKey, VKey> {
@@ -106,7 +157,6 @@ export default class Grid<FKey, EKey, VKey> {
     this.toVertexTessKey = withDefault(props.toVertexTessKey, id);
 
     this.elToString = withDefault(props.elToString, String);
-    checkForStringDuplicates(this.elToString, this);
   }
 
   getProps(): GridPropsRet<FKey, EKey, VKey> {
@@ -125,75 +175,22 @@ export default class Grid<FKey, EKey, VKey> {
     };
   }
 
-  // Sets _faceSet variable if not set already.
-  _computeFaceSet() {
-    if (this._faceSet) {
-      return;
-    }
-    this._faceSet = new Set();
-    this.faceList.forEach(f => this._faceSet.add(this.elToString(f, "f")));
-  }
-
-  // Sets _edgeList and _edgeSet variables if not set already.
-  _computeEdgeListAndSet() {
-    if (this._edgeList && this._edgeSet) {
-      return;
-    }
-    const edgeList = [];
-    const edgeSet = new Set();
-    this.faceList.forEach(f => {
-      const tessF = this.toFaceTessKey(f);
-      this.tesselation.getEdgesOnFace(tessF).forEach(tessE => {
-        const e = this.fromEdgeTessKey(tessE);
-        const eStr = this.elToString(e, "e");
-        if (!edgeSet.has(eStr)) {
-          edgeList.push(e);
-          edgeSet.add(eStr);
-        }
-      });
-    });
-    this._edgeList = edgeList;
-    this._edgeSet = edgeSet;
-  }
-
-  // Sets _vertexList and _vertexSet variables if not set already.
-  _computeVertexListAndSet() {
-    if (this._vertexList && this._vertexSet) {
-      return;
-    }
-    const vertexList = [];
-    const vertexSet = new Set();
-    this.faceList.forEach(f => {
-      const tessF = this.toFaceTessKey(f);
-      this.tesselation.getVerticesOnFace(tessF).forEach(tessV => {
-        const v = this.fromVertexTessKey(tessV);
-        const vStr = this.elToString(v, "v");
-        if (!vertexSet.has(vStr)) {
-          vertexList.push(v);
-          vertexSet.add(vStr);
-        }
-      });
-    });
-    this._vertexList = vertexList;
-    this._vertexSet = vertexSet;
-  }
-
   getFaceList(): Array<FKey> {
     return this.faceList;
   }
 
   getEdgeList(): Array<EKey> {
-    this._computeEdgeListAndSet();
+    computeEdgeListAndSet(this);
     return this._edgeList;
   }
 
   getVertexList(): Array<VKey> {
-    this._computeVertexListAndSet();
+    computeVertexListAndSet(this);
     return this._vertexList;
   }
 
   hasFace(face: FKey): boolean {
-    this._computeFaceSet();
+    computeFaceSet(this);
     return this._faceSet.has(this.elToString(face, "f"));
   }
 
@@ -204,7 +201,7 @@ export default class Grid<FKey, EKey, VKey> {
   }
 
   hasEdge(edge: EKey): boolean {
-    this._computeEdgeListAndSet();
+    computeEdgeListAndSet(this);
     let has = this._edgeSet.has(this.elToString(edge, "e"));
     if (!has) {
       // This might throw if the edge is in a completely wrong format, and
@@ -220,7 +217,7 @@ export default class Grid<FKey, EKey, VKey> {
   }
 
   hasVertex(vertex: VKey): boolean {
-    this._computeVertexListAndSet();
+    computeVertexListAndSet(this);
     return this._vertexSet.has(this.elToString(vertex, "v"));
   }
 
@@ -326,31 +323,22 @@ export default class Grid<FKey, EKey, VKey> {
     return !this.hasEdge(edge);
   }
 
-  _fromTessCoordinates([x, y]: Point): Point {
-    const [ox, oy] = this.origin;
-    return [this.scale * x + ox, this.scale * y + oy];
-  }
-
-  _toTessCoordinates([x, y]: Point): Point {
-    const [ox, oy] = this.origin;
-    return [(x - ox) / this.scale, (y - oy) / this.scale];
-  }
-
   getFaceCoordinates(face: FKey): Array<Point> {
     return this.tesselation
       .getFaceCoordinates(this.toFaceTessKey(face))
-      .map(p => this._fromTessCoordinates(p));
+      .map(p => fromTessCoordinates(this, p));
   }
 
   getEdgeCoordinates(edge: EKey): [Point, Point] {
     const [p1, p2] = this.tesselation.getEdgeCoordinates(
       this.toEdgeTessKey(edge)
     );
-    return [this._fromTessCoordinates(p1), this._fromTessCoordinates(p2)];
+    return [fromTessCoordinates(this, p1), fromTessCoordinates(this, p2)];
   }
 
   getVertexCoordinates(vertex: VKey): Point {
-    return this._fromTessCoordinates(
+    return fromTessCoordinates(
+      this,
       this.tesselation.getVertexCoordinates(this.toVertexTessKey(vertex))
     );
   }
@@ -366,18 +354,18 @@ export default class Grid<FKey, EKey, VKey> {
   }
 
   findFaceAt(point: Point): ?FKey {
-    const face = this.tesselation.findFaceAt(this._toTessCoordinates(point));
+    const face = this.tesselation.findFaceAt(toTessCoordinates(this, point));
     return face && this.fromFaceTessKey(face);
   }
 
   findEdgeAt(point: Point): ?EKey {
-    const edge = this.tesselation.findEdgeAt(this._toTessCoordinates(point));
+    const edge = this.tesselation.findEdgeAt(toTessCoordinates(this, point));
     return edge && this.fromEdgeTessKey(edge);
   }
 
   findVertexAt(point: Point): ?VKey {
     const vertex = this.tesselation.findVertexAt(
-      this._toTessCoordinates(point)
+      toTessCoordinates(this, point)
     );
     return vertex && this.fromVertexTessKey(vertex);
   }

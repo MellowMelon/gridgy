@@ -9,6 +9,10 @@ export function forEachObj<K, V>(obj: {[K]: V}, f: (V, string) => mixed) {
   }
 }
 
+export function isObject(obj: mixed): boolean {
+  return !!obj && typeof obj === "object";
+}
+
 export function mapValues<K, V, U>(
   obj: {[K]: V},
   f: (V, string) => U

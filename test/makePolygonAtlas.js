@@ -3,35 +3,36 @@
 import {describe, it} from "mocha";
 import {expect} from "chai";
 
-import PolygonAtlas from "../src/PolygonAtlas.js";
+import makePolygonAtlas from "../src/makePolygonAtlas.js";
 
 describe("PolygonAtlas", () => {
-  const t = new PolygonAtlas([0, 0, 100, 100]);
-
+  const bb = [0, 0, 100, 100];
+  const pd = [];
   for (let i = 0; i < 10; i += 1) {
     for (let j = 0; j < 10; j += 1) {
-      t.addPolygon(
+      pd.push([
         [
           [2 + 10 * i, 2 + 10 * j],
           [12 + 10 * i, 2 + 10 * j],
           [12 + 10 * i, 12 + 10 * j],
         ],
-        i + "," + j + ",u"
-      );
-      t.addPolygon(
+        i + "," + j + ",u",
+      ]);
+      pd.push([
         [
           [12 + 10 * i, 2 + 10 * j],
           [12 + 10 * i, 12 + 10 * j],
           [2 + 10 * i, 12 + 10 * j],
         ],
-        i + "," + j + ",d"
-      );
+        i + "," + j + ",d",
+      ]);
     }
   }
+  const atlas = makePolygonAtlas(bb, pd);
 
   const expectP = function(point) {
     // Using sort to enforce consistent ordering
-    return expect(t.findPolygons(point).sort(), point.join(","));
+    return expect(atlas(point).sort(), point.join(","));
   };
 
   it("should find all polygons that contain the point", () => {

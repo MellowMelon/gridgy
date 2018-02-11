@@ -133,17 +133,6 @@ describe("Grid", () => {
         "must pass faceList"
       );
     });
-
-    it("should error when elToString does not return unique strings", () => {
-      const props = {
-        tesselation: tSquare,
-        faceList: [{a: 1}, {b: 2}, {c: 3}],
-      };
-      expect(construct(props)).to.throw(
-        Error,
-        "elToString returns [object Object] for both"
-      );
-    });
   });
 
   describe("getProps", () => {

@@ -3,20 +3,22 @@
 import {describe, it} from "mocha";
 import {expect} from "chai";
 
-import QuadTree from "../src/QuadTree.js";
+import makeQuadTree from "../src/makeQuadTree.js";
 
 describe("QuadTree", () => {
-  const t = new QuadTree([0, 0, 100, 100]);
+  const bb = [0, 0, 100, 100];
+  const rd = [];
 
   for (let i = 0; i < 10; i += 1) {
     for (let j = 0; j < 10; j += 1) {
-      t.addRect([2 + 10 * i, 2 + 10 * j, 14, 14], i + "," + j);
+      rd.push([[2 + 10 * i, 2 + 10 * j, 14, 14], i + "," + j]);
     }
   }
+  const quadTree = makeQuadTree(bb, rd);
 
   const expectP = function(point) {
     // Using sort to enforce consistent ordering
-    return expect(t.findRects(point).sort(), point.join(","));
+    return expect(quadTree(point).sort(), point.join(","));
   };
 
   it("should find all rectangles that contain the point", () => {

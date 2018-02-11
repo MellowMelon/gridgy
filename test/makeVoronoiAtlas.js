@@ -6,7 +6,7 @@ import {expect} from "chai";
 import makeVoronoiAtlas from "../src/makeVoronoiAtlas.js";
 
 describe("makeVoronoiAtlas", () => {
-  const t = makeVoronoiAtlas([
+  const atlas = makeVoronoiAtlas([
     [[0, 0], 0],
     [[10, 20], 1],
     [[20, 0], 2],
@@ -16,7 +16,7 @@ describe("makeVoronoiAtlas", () => {
 
   const expectP = function(point) {
     // Using sort to enforce consistent ordering.
-    const res = t.findPolygons(point).sort();
+    const res = atlas(point).sort();
     // Then dropping polygon which we don't care about here.
     return expect(res.map(p => p[1]), point.join(","));
   };

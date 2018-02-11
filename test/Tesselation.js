@@ -118,65 +118,23 @@ describe("Tesselation", () => {
       expect(construct(false), "false").to.throw(Error, message);
     });
 
-    it("should error helpfully when the period matrix is wrong", () => {
-      const constructPeriod = m => construct({periodMatrix: m});
-      const message = "must pass array of 4 numbers for periodMatrix";
-      expect(constructPeriod({a: 1})).to.throw(Error, message);
-      expect(constructPeriod([1, 1, 1, 1, 1])).to.throw(Error, message);
-      expect(constructPeriod([1, 1, 1, "2"])).to.throw(Error, message);
-      expect(constructPeriod([1, 1, 1, NaN])).to.throw(Error, message);
-    });
-
-    it("should error helpfully when faceVerticesTable is wrong", () => {
-      const constructFV = fv =>
+    it("should error helpfully when a field is missing", () => {
+      const message = "must pass array for periodMatrix";
+      expect(construct({periodMatrix: {a: 1}})).to.throw(Error, message);
+      expect(
         construct({
           periodMatrix: [1, 0, 0, 1],
-          faceVerticesTable: fv,
+          faceVerticesTable: null,
           vertexCoordinatesTable: {"0": [0, 0]},
-        });
-      expect(constructFV(null)).to.throw(
-        Error,
-        "must pass an object for faceVerticesTable"
-      );
-      expect(constructFV({"0": "1"})).to.throw(
-        Error,
-        "all values of faceVerticesTable must be arrays; check face 0"
-      );
+        })
+      ).to.throw(Error, "must pass an object for faceVerticesTable");
       expect(
-        constructFV({"0": [[1, 1, "0"]], "1": [[1, 1, "0"], [1, 1]]})
-      ).to.throw(Error, "[number, number, vertexID]; check face 1 #2");
-      expect(
-        constructFV({"0": [[1, 1, "0"]], "1": [[1, "0", "0"], [1, 1, "0"]]})
-      ).to.throw(Error, "[number, number, vertexID]; check face 1 #1");
-      expect(constructFV({"0": [[1, 1, "0"]], "1": [[1, 1, "1"]]})).to.throw(
-        Error,
-        "must be in vertexCoordinatesTable; check face 1 #1"
-      );
-    });
-
-    it("should error helpfully when vertexCoordinatesTable is wrong", () => {
-      const constructVC = vc =>
         construct({
           periodMatrix: [1, 0, 0, 1],
           faceVerticesTable: {},
-          vertexCoordinatesTable: vc,
-        });
-      expect(constructVC(null)).to.throw(
-        Error,
-        "must pass an object for vertexCoordinatesTable"
-      );
-      expect(constructVC({"0": [0, 0], "1": "1"})).to.throw(
-        Error,
-        "must be [number, number]; check vertex 1"
-      );
-      expect(constructVC({"0": [0, 0], "2": [1, 1, 1]})).to.throw(
-        Error,
-        "must be [number, number]; check vertex 2"
-      );
-      expect(constructVC({"0": [0, 0], "3": [1, NaN]})).to.throw(
-        Error,
-        "must be [number, number]; check vertex 3"
-      );
+          vertexCoordinatesTable: null,
+        })
+      ).to.throw(Error, "must pass an object for vertexCoordinatesTable");
     });
   });
 

@@ -81,7 +81,7 @@ function findClickedCell(mouseX, mouseY) {
 
 For a larger example, check the
 [demo](https://mellowmelon.github.io/gridgy-presets/index.html) and its
-[source](https://github.com/MellowMelon/gridgy-presets/demo/demo.js).
+[source](https://github.com/MellowMelon/gridgy-presets/blob/master/demo/demo.js).
 
 # API
 
